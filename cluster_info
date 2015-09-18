@@ -1,0 +1,805 @@
+#!/bin/bash
+
+## TODO 
+##	potreba aby se dal specifikovat pocet Binu pri ploceni statistiky
+##	potreba pridat moznost -pf FILE_PATH pro ploceni do pdf
+
+source ~/.bashrc_sc
+source ~/.sc_scripts/script_functions
+
+###############################################
+####        Check directory data           ####
+###############################################
+if [ -z "$(ls -f *cluster*.dat 2>/dev/null)" ]; then
+	printError "No data files in current directory!\n"
+	printInfo  "Directory must contain datafiles with name in format *cluster*.dat.\n"
+	exit 1
+fi
+
+###############################################
+####      Init Processing Directory        ####
+###############################################
+initProcDir
+
+###############################################
+####            Bash FUNCTIONS              ###
+###############################################
+
+BASH_showHelp(){
+	## Simple Help
+	if [[ $# == 0 ]]; then
+		echo -e ""
+		echo -e "        |==============================|                       "
+		echo -e "        |         Cluster Info         |                       "
+		echo -e "        |==============================|                       "
+		echo -e ""
+		echo -e "Script describe variety of properties of clusters of finite size."
+		echo -e "\nParameters:"
+		echo -e "\t-h\tShow this help message and exit."
+		echo -e ""
+		echo -e "\t-s\tCreate statistics of occurence of different cluster."
+		echo -e "\t\t[Optional]"
+		echo -e "\t\t-s\tIf specified only clusters defined by selection are used for statistics. (For more info type cluster_info -h -s)"
+		echo -e "\t\t-g\tIf specified only clusters of defined geometry are used for statistics. (For more info type cluster_info -h -s)"
+		echo -e ""
+		echo -e "\t-sp\tPlot cluster statistics derived in previous."
+		echo -e "\t\t[Optional]"
+		echo -e "\t\t-pdf\tIf specified all output is set to pdf. (For more info type cluster_info -h -sp)"
+		echo -e "\t\t-bin\tIf specified next argument after -bin is number of bins for plotting. (For more info type cluster_info -h -sp)"
+		echo -e ""
+		echo -e "\t-e\tCreate Energy histograms."
+		echo -e "\t\t[Optional]"
+		echo -e "\t\t-a\tCreate separet energy histogram for each cluster size."
+		echo -e ""
+		echo -e "\t-ep\tPlot Energy histograms."
+		echo -e "\t\t[Optional]"
+		echo -e "\t\t-a\tPlot separet energy histogram for each cluster size."
+	elif [[ $1 == "-s" ]]; then
+		echo -e "Selection have form: \"SizeOfCluster(min_energy_per_monomer, max_energy_per_monomer)\""
+		echo -e "EXAMPLE:\tcluster_info -s -s 3(-5.1, -1.5) ----> will apply selection to clusters of size 3"
+		echo -e "\t\tand only clusters where energy per monomer is in range <-5.1; -1.5> will be used"
+		echo -e "To use cluster statistics derived from cluster geometry use option -g" 
+		echo -e "EXAMPLE:\tcluster_info -s -g ----> will select cluster based on geometric properties."
+	elif [[ $1 == "-sp" ]]; then
+		echo -e "-bin Set number of bins in which data are distributed and ploted as histogram"
+		echo -e "EXAMPLE:\tcluster_info -sp -bin 50 ----> will create histogram with 50 bins."
+		echo -e "-pdf If used plot is also plotted into pdf file situated at ./${PROC_DIR}/cluster_stat.pdf"
+		echo -e "EXAMPLE:\tcluster_info -sp -pdf"
+	else
+		printError "Unknown expanded help option!\n"
+		return 1
+	fi
+	return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_condenseClusters(){
+	## Function which condensate "cluster.data"
+	## In case of no paralel tempering argument is empty string ""
+	## In case of paralel tempering argument is 0
+
+    printMessage "Pile up clusters from multiple runs ..."
+	RANK=$1
+	if [ -f ${RANK}cluster-1.dat ]; then
+    	# compress cluster.dat from diferent runs into ${RANK}cluster_all.dat
+    	while [ -f ${RANK}cluster-1.dat ]; do
+    	    NSIM=1
+			ADD=0
+			printMessage "."
+			if [ -f ./${PROC_DIR}/${RANK}cluster_all.dat ]; then
+				rm -rf ./${PROC_DIR}/${RANK}cluster_all.dat
+			fi
+    	    while [ -f ${RANK}cluster-${NSIM}.dat ]; do
+			    awk -v add=${ADD} '{if($1 == "Sweep:"){$2+=add;print}else{print}}' < ${RANK}cluster-${NSIM}.dat >> ./${PROC_DIR}/${RANK}cluster_all.dat
+			    ADD=$(cat ./${PROC_DIR}/${RANK}cluster_all.dat | awk '{if($1 == "Sweep:"){print}}' | tail -n 1 | sed -e 's/Sweep: \([0-9]*\) |.*/\1/g')
+			    NSIM=$[NSIM+1]
+			done
+			## Add data from last run
+		    awk -v add=${ADD} '{if($1 == "Sweep:"){$2+=add;print}else{print}}' < ${RANK}cluster.dat >> ./${PROC_DIR}/${RANK}cluster_all.dat
+			RANK=$[RANK+1]
+    	done
+		printMessage "Done\n"
+	elif [ -f ${RANK}cluster.dat ]; then
+    	while [ -f ${RANK}cluster.dat ]; do
+			if [ -f ./${PROC_DIR}/${RANK}cluster_all.dat ]; then
+				rm -rf ./${PROC_DIR}/${RANK}cluster_all.dat
+			fi
+			cat ${RANK}cluster.dat >> ./${PROC_DIR}/${RANK}cluster_all.dat
+			RANK=$[RANK+1]
+    	done
+		printMessage "Done\n"
+	else
+		printf "\n"
+		printError "Directory doesnt contain simulation data \"*cluster_stat.dat\" files!\n"
+		printInfo  "Check directory or see help.\n"
+		exit 1
+	fi
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_condenseMovie(){
+	## Function take multiple movie files and condense them into one big movie
+	printMessage "Pile up movies from multiple runs ..."
+	RANK=$1
+	if [ -f ${RANK}movie-1 ]; then
+    	# compress movie from diferent runs into ${RANK}movie_all
+    	while [ -f ${RANK}movie-1 ]; do
+    	    NSIM=1
+			ADD=0
+			printMessage "."
+			if [ -f ./${PROC_DIR}/${RANK}movie_all ]; then
+				rm -rf ./${PROC_DIR}/${RANK}movie_all
+			fi
+    	    while [ -f ${RANK}movie-${NSIM} ]; do
+			    awk -v add=${ADD} '{if($1 == "sweep"){$2+=add;$2=$2";";print}else{print}}' < ${RANK}movie-${NSIM} >> ./${PROC_DIR}/${RANK}movie_all
+			    ADD=$(cat ./${PROC_DIR}/${RANK}movie_all | awk '{if($1 == "sweep"){print}}' | tail -n 1 | awk '{print $2}')
+			    NSIM=$[NSIM+1]
+			done
+			## Add data from last run
+		    awk -v add=${ADD} '{if($1 == "sweep"){$2+=add;$2=$2";";print}else{print}}' < ${RANK}movie >> ./${PROC_DIR}/${RANK}movie_all
+			RANK=$[RANK+1]
+    	done
+		printMessage "Done\n"
+	elif [ -f ${RANK}movie ]; then
+    	while [ -f ${RANK}movie ]; do
+			if [ -f ./${PROC_DIR}/${RANK}movie_all ]; then
+				rm -rf ./${PROC_DIR}/${RANK}movie_all
+			fi
+			cat ${RANK}movie >> ./${PROC_DIR}/${RANK}movie_all
+			RANK=$[RANK+1]
+    	done
+		printMessage "Done\n"
+	else
+		printf "\n"
+		printError "Directory doesnt contain simulation data \"*movie\" files!\n"
+		printInfo  "Check directory or see help.\n"
+		exit 1
+	fi
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_calcStatistics(){
+	## Is simulation paralel tempering?
+	NUM_OF_REPLICAS=$(numOfReplica)
+	## Condense data from cluster.dat first
+	if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+		BASH_condenseClusters ""
+	elif [[ $NUM_OF_REPLICAS > 1 ]]; then
+		BASH_condenseClusters "0"
+	else
+		printError "Problem with counting number of replicas check .sc_scripts/script_functions\n"
+		return 1
+	fi
+	# ___________________________________ 
+	#/                                   \
+	#|	  Clusters defined by energy     |
+	#\___________________________________/	
+	if [[ ($# > 0) && ( ${1::2} == "-s") ]]; then ## selection was taken
+		## cl selection formated string "size(minE,maxE)"
+		## EXAMPLE: "3(-10.0, -3.2)" mean select clusters of size 3 where interaction energy per
+		##			particle is in range -10.0 to -3.2
+		clSize=$(sed 's/\([0-9]*\)(.*/\1/' <<< $2)
+		minE=$(sed 's/.*(\([-0-9.]*\),.*/\1/' <<< $2)
+		maxE=$(sed 's/.*,\([-0-9.]*\)).*/\1/' <<< $2)
+		if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+			printWarning "Numbers of clusters at particular sweep in new cluster*.dat may not be right after selection.\n"
+			AWK_clSelEnergy ./${PROC_DIR}/cluster_all.dat $clSize $minE $maxE > ./${PROC_DIR}/cluster_all.tmp
+			mv ./${PROC_DIR}/cluster_all.tmp ./${PROC_DIR}/cluster_all.dat
+			AWK_clustToStat ./${PROC_DIR}/cluster_all.dat > ./${PROC_DIR}/cluster_stat_all.dat
+		elif [[ $NUM_OF_REPLICAS > 1 ]]; then
+			RANK=0
+			printWarning "Numbers of clusters at particular sweep in new cluster*.dat may not be right after selection.\n"
+			while [ -f ./${PROC_DIR}/${RANK}cluster_all.dat ]; do
+				AWK_clSelEnergy ./${PROC_DIR}/${RANK}cluster_all.dat $clSize $minE $maxE > ./${PROC_DIR}/${RANK}cluster_all.tmp
+				mv ./${PROC_DIR}/${RANK}cluster_all.tmp ./${PROC_DIR}/${RANK}cluster_all.dat
+				AWK_clustToStat ./${PROC_DIR}/${RANK}cluster_all.dat > ./${PROC_DIR}/${RANK}cluster_stat_all.dat
+				RANK=$[RANK+1]
+			done
+		else
+			printError "Problem with counting number of replicas check .sc_scripts/script_functions\n"
+			return 1
+		fi
+	# ___________________________________ 
+	#/                                   \
+	#|	 Clusters defined by geometry    |
+	#\___________________________________/
+	elif [[ ($# > 0) && (${1::2} == "-g") ]]; then
+		## For geometric definition of clusters we need to condense movie
+		if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+			BASH_condenseMovie ""
+		elif [[ $NUM_OF_REPLICAS > 1 ]]; then
+			BASH_condenseMovie "0"
+		fi
+
+		mkdir -p ./${PROC_DIR}/clusters
+
+		if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+			box="$(getBoxSize)"
+			cd ./${PROC_DIR}/clusters
+			~/.sc_scripts/extract_clusters_03.py -c ../cluster_all.dat -m ../movie_all -b "$box" > ../cluster_stat_all.dat
+			cd ../../
+#			extractClustersFromMovie ./${PROC_DIR}/cluster_all.dat ./${PROC_DIR}/movie_all ./${PROC_DIR}/clusters
+		elif [[ $NUM_OF_REPLICAS > 1 ]]; then
+			RANK=0
+			box="$(getBoxSize)"
+			while [ -f ./${PROC_DIR}/${RANK}movie_all ]; do
+				cd ./${PROC_DIR}/clusters
+				~/.sc_scripts/extract_clusters_03.py -c ../${RANK}cluster_all.dat -m ../${RANK}movie_all -b "$box" > ../${RANK}cluster_stat_all.dat
+				cd ../../
+#				extractClustersFromMovie ./${PROC_DIR}/${RANK}cluster_all.dat ./${PROC_DIR}/${RANK}movie_all ./${PROC_DIR}/clusters
+				RANK=$[RANK+1]
+			done
+		else
+			printError "Problem with counting number of replicas check .sc_scripts/script_functions\n"
+			return 1
+		fi
+
+
+
+		## NOW Clusters are separated
+
+	# ___________________________________ 
+	#/                                   \
+	#|	   Simple cluster definition     |
+	#\___________________________________/
+	else ## Results if no selection is made
+		if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+			AWK_clustToStat ./${PROC_DIR}/cluster_all.dat > ./${PROC_DIR}/cluster_stat_all.dat
+		elif [[ $NUM_OF_REPLICAS > 1 ]]; then
+			RANK=0
+			printMessage "Processing data ..."
+			while [ -f ./${PROC_DIR}/${RANK}cluster_all.dat ]; do
+				printMessage "."
+				AWK_clustToStat ./${PROC_DIR}/${RANK}cluster_all.dat > ./${PROC_DIR}/${RANK}cluster_stat_all.dat
+				RANK=$[RANK+1]
+			done
+			printMessage "Done\n"
+		else
+			printError "Problem with counting number of replicas check .sc_scripts/script_functions\n"
+			return 1
+		fi
+	fi
+	return $?
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_plotStatistics(){
+	# ___________________________________ 
+	#/                                   \
+	#|	     Set Default Settings        |
+	#\___________________________________/
+	NUM_BINS=10
+	PDF_SWITCH=0	
+
+	# ___________________________________ 
+	#/                                   \
+	#|	        Use Arguments            |
+	#\___________________________________/
+	while [ $# != 0 ]; do
+		if   [ $1 == "-bin" ]; then
+			if [[ $(isNumber $2) == 1 ]]; then
+				NUM_BINS=$2
+				shift 2
+			else
+				printError "Second argument for bins must be number! See help cluster_info -h -sp.\n"
+				exit 1
+			fi
+		elif [ $1 == "-pdf" ]; then
+			PDF_SWITCH=1
+			shift
+		else
+			printError "No valid [Option] for cluster_info -sp ! See help cluster_info -h -sp.\n"
+			exit 1
+		fi
+	done
+	## Is simulation paralel tempering?
+	NUM_OF_REPLICAS=$(numOfReplica)
+
+
+	if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+		if [ ! -f ./${PROC_DIR}/cluster_stat_all.dat ]; then
+			printInfo "Can not find ./${PROC_DIR}/cluster_stat_all.dat\nRun first cluster_info -s\n"
+			return 1
+		fi
+		printMessage "Preparing data for plot..."
+		NUM_DATA=$(cat ./${PROC_DIR}/cluster_stat_all.dat | wc -l)
+    	NUM_POINTS=$((NUM_DATA/NUM_BINS))
+    	rm -f ./${PROC_DIR}/cluster_stat_all.plot 2> /dev/null
+    	for ((i=1; i<=NUM_BINS; i++))do
+	    	AWK_mean "$(awk 'NR>='$((NUM_POINTS*(i-1)))'&&NR<='$((NUM_POINTS*i)) < ./${PROC_DIR}/cluster_stat_all.dat)" >> ./${PROC_DIR}/cluster_stat_all.plot
+    	done
+
+		## Get maximal size of cluster from cluster_stat_all.plot
+		MAX_CL_SIZE=$(awk '{}END{print NF}' < ./${PROC_DIR}/cluster_stat_all.plot)
+
+		## Create plot string
+		if [ -d ./${PROC_DIR}/clusters ]; then
+			if [[ $(bc <<< "$MAX_CL_SIZE - 2") > $MAX_CLUSTER_SIZE ]]; then
+				MAX_CLUSTER_SIZE=$[MAX_CL_SIZE-2]
+			fi
+
+			PLOT=" './${PROC_DIR}/cluster_stat_all.plot' u 2:xtic(1) title 'Monomer-iregular', '' u 3 title 'MonomerAA-regular',"
+			## There were geometric cluster selection and clusters of size n are divided into regular and iregular part
+			curr_size=2
+			for ((i=4; i<=MAX_CL_SIZE; i=i+2))do
+				PLOT="$PLOT '' u ${i} title 'Cl size $(($i-1))-iregular', '' u $(($i+1)) title 'Cl size ${i}-regular',"
+				curr_size=$(($curr_size+1))
+			done
+		else
+			if [[ $(bc <<< "$MAX_CL_SIZE - 1") > $MAX_CLUSTER_SIZE ]]; then
+				MAX_CLUSTER_SIZE=$[MAX_CL_SIZE-1]
+			fi
+
+			PLOT=" './${PROC_DIR}/cluster_stat_all.plot' u 2:xtic(1) title 'Monomer',"
+			## No geometric cluster selection
+			for ((i=3; i<=MAX_CL_SIZE; i++))do
+				PLOT="$PLOT '' u ${i} title 'Cl size $(($i-1))',"
+			done
+		fi
+		PLOT=${PLOT:: -1}
+
+		## Call gnuplot function GNUPLOT_plotStatistics(PLOT string)
+		printMessage "Done\n"
+
+		GNUPLOT_plotStatistics "${PLOT}" "$MAX_CLUSTER_SIZE"
+		
+		return $?
+
+	elif [[ $NUM_OF_REPLICAS > 1 ]]; then
+		RANK=0
+		if [ ! -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; then
+			printInfo "Can not find ./${PROC_DIR}/${RANK}cluster_stat_all.dat\nRun first cluster_info -s\n"
+			return 1
+		fi
+        ## Get Temperature step for ploting
+		MAX_CLUSTER_SIZE=1
+		TEMP=$(getTemp)
+		TEMP_STEP=$(getTempStep)
+		PLOT=""
+		printMessage "Preparing data from different replicas\n"
+		while [ -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; do
+			printMessage "Replica RANK ${RANK}..."
+			NUM_DATA=$(cat ./${PROC_DIR}/${RANK}cluster_stat_all.dat | wc -l)
+			NUM_POINTS=$((NUM_DATA/NUM_BINS))
+			rm -f ./${PROC_DIR}/${RANK}cluster_stat_all.plot 2> /dev/null
+	    	for ((i=1; i<=NUM_BINS; i++))do
+				printMessage "."
+		    	AWK_mean "$(awk 'NR>='$((NUM_POINTS*(i-1)))'&&NR<='$((NUM_POINTS*i)) < ./${PROC_DIR}/${RANK}cluster_stat_all.dat)" >> ./${PROC_DIR}/${RANK}cluster_stat_all.plot
+	    	done
+			printMessage "Done\n"
+			## Get maximal size of cluster from cluster_stat_all.plot
+			MAX_CL_SIZE=$(awk '{}END{print NF}' < ./${PROC_DIR}/${RANK}cluster_stat_all.plot)
+
+			## Create plot string
+			if [ -d ./${PROC_DIR}/clusters ]; then
+				if [[ $(bc <<< "$MAX_CL_SIZE - 2") > $MAX_CLUSTER_SIZE ]]; then
+					MAX_CLUSTER_SIZE=$[MAX_CL_SIZE-2]
+				fi
+				## There were geometric cluster selection and clusters of size n are divided into regular and iregular part
+				PLOT="${PLOT}set title 'T = $(bc <<< "($RANK * $TEMP_STEP) + $TEMP"), Rank = ${RANK}';set xlabel 'Sweep number';set ylabel 'Cluster distribution';plot './${PROC_DIR}/${RANK}cluster_stat_all.plot' u 2:xtic(1) title 'Monomer-iregular', '' u 3 title 'Monomer-regular',"
+				curr_size=2
+				for ((i=4; i<=MAX_CL_SIZE; i=i+2))do
+					PLOT="$PLOT '' u ${i} title 'Cl size ${curr_size}-iregular', '' u $(($i+1)) title 'Cl size ${curr_size}-regular',"
+					curr_size=$(($curr_size+1))
+				done
+			else
+				if [[ $(bc <<< "$MAX_CL_SIZE - 1") > $MAX_CLUSTER_SIZE ]]; then
+					MAX_CLUSTER_SIZE=$[MAX_CL_SIZE-1]
+				fi
+				PLOT="${PLOT}set title 'T = $(bc <<< "($RANK * $TEMP_STEP) + $TEMP"), Rank = ${RANK}';set xlabel 'Sweep number';set ylabel 'Cluster distribution';plot './${PROC_DIR}/${RANK}cluster_stat_all.plot' u 2:xtic(1) title 'Monomer',"
+				## No geometric cluster selection
+				for ((i=3; i<=MAX_CL_SIZE; i++))do
+					PLOT="$PLOT '' u ${i} title 'Cl size $(($i-1))',"
+				done
+			fi
+			PLOT=${PLOT:: -1}
+			PLOT="${PLOT};"
+			RANK=$[RANK+1]
+		done
+		PLOT=${PLOT:: -1}
+		GNUPLOT_multiPlotStatistics "$PLOT" "./${PROC_DIR}/cluster_stat.pdf" "$NUM_OF_REPLICAS" "$MAX_CLUSTER_SIZE"
+		printMessage "Done\n"
+	else
+		printError "Problem with counting number of replicas check function in .sc_scripts/script_functions\n"
+		return 1
+	fi
+	return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_createEnergyDistribution(){
+	## Is simulation paralel tempering?
+	NUM_OF_REPLICAS=$(numOfReplica)
+
+	if [ -z "$(ls -f ./${PROC_DIR}/*cluster_all.dat 2> /dev/null)" ]; then
+		printError "Cant find ./${PROC_DIR}/*cluster_all.dat input file, run first cluster_info -s.\n"
+		return 1
+	fi
+
+	if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+
+		if [[ $# == 0 ]]; then ## I want to create energy distribution plot
+			## This part besicly extract cluster energyes as single number and pu them intop single output file
+			cat ./${PROC_DIR}/cluster_all.dat | awk '{if($1 != "Sweep:"){print $1}}' | sed -e 's/.*(\(.*\)).*/\1/g' > ./${PROC_DIR}/cluster_CS_all.dat
+
+		elif [[ ${1} == "-a" ]]; then ## I want to create separet graphs for each cluster size
+			if [ ! -f ./${PROC_DIR}/cluster_stat_all.dat ]; then
+				printError "No imput file ./${PROC_DIR}/cluster_stat_all.dat, run cluster_info -s to get overall statistics.\n"
+				return 1
+			fi
+			MAX_CLUSTER=$(AWK_maxNumColumns "./${PROC_DIR}/cluster_stat_all.dat" | awk '{print $1-1}')
+	    	MIN_CLUSTER=2
+
+    		## Cycle through all sizes of clusters and create separet plots for every cluster size
+    		for (( i=${MIN_CLUSTER}; i<=${MAX_CLUSTER}; i++)); do
+				printMessage "Solving clusters of size ${i}\n"
+	    	    # Here I skipp clusters of size one since they are not actualy clusters and create cluster data files for every size
+		        if [ $i -ge 2 ]; then
+			    	cat ./${PROC_DIR}/cluster_all.dat | awk -v cluster=${i} '{if($1 != "Sweep:" && NF == cluster+1){print $1}}' | sed -e 's/.*(\(.*\)).*/\1/g' > ./${PROC_DIR}/cluster_CS${i}.dat
+				fi
+			done
+		else
+			printError "Unknow second option ${1}, aviable options are \" \" or -a.\n"
+			return 1			
+		fi
+
+	elif [[ $NUM_OF_REPLICAS > 1 ]]; then ## Replica exchange
+
+		if [[ $# == 0 ]]; then ## I want to create energy distribution plot
+			RANK=0
+			while [ -f ./${PROC_DIR}/${RANK}cluster_all.dat ]; do
+				## This part besicly extract cluster energyes as single number and pu them intop single output file
+				cat ./${PROC_DIR}/${RANK}cluster_all.dat | awk '{if($1 != "Sweep:"){print $1}}' | sed -e 's/.*(\(.*\)).*/\1/g' > ./${PROC_DIR}/${RANK}cluster_CS_all.dat
+				RANK=$[RANK+1]
+			done
+
+		elif [[ ${1} == "-a" ]]; then ## I want to create separet graphs for each cluster size
+			RANK=0
+			while [ -f ./${PROC_DIR}/${RANK}cluster_all.dat ]; do
+				if [ ! -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; then
+					printError "No imput file ./${PROC_DIR}/${RANK}cluster_stat_all.dat, run cluster_info -s to get overall statistics.\n"
+					return 1
+				fi
+				MAX_CLUSTER=$(AWK_maxNumColumns "./${PROC_DIR}/${RANK}cluster_stat_all.dat" | awk '{print $1-1}')
+		    	MIN_CLUSTER=2
+
+	    		## Cycle through all sizes of clusters and create separet plots for every cluster size
+	    		for (( i=${MIN_CLUSTER}; i<=${MAX_CLUSTER}; i++)); do
+					printMessage "Solving clusters of size ${i}\n"
+		    	    # Here I skipp clusters of size one since they are not actualy clusters and create cluster data files for every size
+			        if [ $i -ge 2 ]; then
+				    	cat ./${PROC_DIR}/${RANK}cluster_all.dat | awk -v cluster=${i} '{if($1 != "Sweep:" && NF == cluster+1){print $1}}' | sed -e 's/.*(\(.*\)).*/\1/g' > ./${PROC_DIR}/${RANK}cluster_CS${i}.dat
+					fi
+				done
+				RANK=$[RANK+1]
+			done		
+		else
+			printError "Unknow second option ${1}, aviable options are \" \" or -a.\n"
+			return 1			
+		fi
+	else
+		printError "Problem with counting number of replicas check function in .sc_scripts/script_functions\n"
+		return 1
+	fi
+	return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_plotEnergyDistribution(){
+	## Is simulation paralel tempering?
+	NUM_OF_REPLICAS=$(numOfReplica)
+
+	if [[ $# == 0 || $# == 1 ]];then
+		NUM_BINS=100
+	elif [[ $# == 3 && $(isNumber $3) == 1 ]]; then ## Check if second argument is realy a number
+		NUM_BINS=$1
+	else
+		printError "Second argument mus be a number or no argument!\n"
+		return 1
+	fi
+		
+	if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+
+
+		if [[ $# == 0 ]]; then ## I want to plot energy distribution plot
+			if [ ! -f ./${PROC_DIR}/cluster_CS_all.dat ]; then
+				printError "No input energy distribution ./${PROC_DIR}/cluster_CS_all.dat.\n"
+				return 1
+			fi
+
+			MAX_MIN=$(minMax "./${PROC_DIR}/cluster_CS_all.dat")
+	    	# Calculate size of bin in graph based on range of energies
+	    	STEP_SIZE=$(echo $MAX_MIN | awk -v num_bins=$NUM_BINS '{print ($2-$1)/num_bins}')
+	        printMessage "Plotting data into cluster_CS_all.pdf\n"
+			GNUPLOT_plotEnergy "${STEP_SIZE}" "./${PROC_DIR}/cluster_CS_all.dat"
+		elif [[ ${1} == "-a" ]]; then ## I want to plot separet graphs for each cluster size
+			if [ -z "$(ls ./${PROC_DIR}/cluster_CS*.dat)" ]; then
+				printError "Missing input energy histograms ./${PROC_DIR}/cluster_CS*.dat, run first cluster_info -e -a.\n"
+				return 1
+			fi
+			
+			for clust in $(ls -f ./${PROC_DIR}/cluster_CS*.dat ); do
+				MAX_MIN=$(minMax "$clust")
+		    	# Calculate size of bin in graph based on range of energies
+		    	STEP_SIZE=$(echo $MAX_MIN | awk -v num_bins=$NUM_BINS '{print ($2-$1)/num_bins}')
+		        printMessage "Plotting data into ${clust:: -4}.pdf\n"
+				GNUPLOT_plotEnergy "${STEP_SIZE}" "${clust}"
+			done
+		else
+			printError "Unknow second option ${1}, aviable options are \" \" or -a.\n"
+			return 1			
+		fi
+	
+
+	elif [[ $NUM_OF_REPLICAS > 1 ]]; then ## Replica exchange
+		
+		RANK=0
+		while [ ! -z "$(ls ./${PROC_DIR}/${RANK}cluster_CS*.dat 2> /dev/null)" ]; do
+			if [[ $# == 0 ]]; then ## I want to plot energy distribution plot
+				if [ ! -f ./${PROC_DIR}/${RANK}cluster_CS_all.dat ]; then
+					printError "No input energy distribution ./${PROC_DIR}/cluster_CS_all.dat.\n"
+					return 1
+				fi
+
+				MAX_MIN=$(minMax "./${PROC_DIR}/${RANK}cluster_CS_all.dat")
+		    	# Calculate size of bin in graph based on range of energies
+		    	STEP_SIZE=$(echo $MAX_MIN | awk -v num_bins=$NUM_BINS '{print ($2-$1)/num_bins}')
+		        printMessage "Plotting data into ${RANK}cluster_CS_all.pdf\n"
+				GNUPLOT_plotEnergy "${STEP_SIZE}" "./${PROC_DIR}/${RANK}cluster_CS_all.dat"
+			elif [[ ${1} == "-a" ]]; then ## I want to plot separet graphs for each cluster size
+				if [ -z "$(ls ./${PROC_DIR}/${RANK}cluster_CS*.dat)" ]; then
+					printError "Missing input energy histograms ./${PROC_DIR}/${RANK}cluster_CS*.dat, run first cluster_info -e -a.\n"
+					return 1
+				fi
+			
+				for clust in $(ls -f ./${PROC_DIR}/${RANK}cluster_CS*.dat ); do
+					MAX_MIN=$(minMax "$clust")
+			    	# Calculate size of bin in graph based on range of energies
+			    	STEP_SIZE=$(echo $MAX_MIN | awk -v num_bins=$NUM_BINS '{print ($2-$1)/num_bins}')
+			        printMessage "Plotting data into ${clust:: -4}.pdf\n"
+					GNUPLOT_plotEnergy "${STEP_SIZE}" "${clust}"
+				done
+			else
+				printError "Unknow second option ${1}, aviable options are \" \" or -a.\n"
+				return 1			
+			fi
+			RANK=$[RANK+1]
+		done
+	else
+		printError "Problem with counting number of replicas check function in .sc_scripts/script_functions\n"
+		return 1
+	fi
+	
+}
+
+###############################################
+####            AWK FUNCTIONS               ###
+###############################################
+
+AWK_clSelEnergy(){
+	## Function take cluster.dat and return edited file where only clusturs
+	## of defined size and interaction energy per particle are present
+	## ----------------------------------------------------------------
+	## INPUT: 	$1 	- 		path to cluster.dat file
+	## 			$2 	- 		size of cluster for which selection should be done
+	##			($3, $4)  	range of interaction energy per particle which
+	##						stay in output
+	awk -v clsize=$2 -v minE=$3 -v maxE=$4 '
+	{
+		if($1 == "Sweep:" ){
+			print;
+		}else{
+			if(NF-1 == clsize){
+				match($1, "\((-[0-9.]*)\)",energy)
+				E=energy[0]/(NF-1); # Energy per particle in cluster
+				if ( (E >= minE) && (E <= maxE) ){ # condition of energy is fulfiled
+					print;
+				}else{ # cluster is split to single particles for futher calculations
+					for(i=1;i<=clsize;i++){
+						print "newparticles(): 99999"i
+					}
+				}
+			}else{
+				print;
+			}
+		}
+	}' < $1 2>/dev/null
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+AWK_clustToStat(){
+	## Function take cluster.dat and transfer it to the cluster_stat_all.dat
+	## ---------------------------------------------------------------------
+	## INPUT: 	$1 	- 		path to cluster*.dat file
+	## RETURN: 				on stdout cluster_stat_all.dat
+	awk '
+		BEGIN{maxClSize=1}
+		{
+		if($1 == "Sweep:" ){
+## Print resulted data for sweep
+			line=""sweep;
+			for(i=1;i<=maxClSize;i++){
+				if(i in clusters){
+					line=line " " clusters[i];
+				}else{
+					line=line " 0";
+				}
+			}
+			if(NR>1){
+				print line;
+			}
+## CLEAR ARRAY for next sweep
+			for(i in clusters){
+				clusters[i]=0;
+			}
+			sweep  = $2;
+		}else{
+			clusters[NF-1]++;
+			if((NF-1) > maxClSize){
+				maxClSize=NF-1;
+			}
+		}
+	}' < $1
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+AWK_mean(){
+	echo "$1" | awk 'BEGIN{}
+	{
+	for (i=1; i<=NF-1; i++){
+		sum[i]+=$(i+1)
+		}
+	}
+	END{
+	output=""
+	for (x=1; x<=length(sum); x++){
+		SUM+=sum[x]
+		}
+	for (x=1; x<=length(sum); x++){
+		output=(output sum[x]/SUM " ")
+		}
+	print $1/1000,output}
+	'
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+AWK_maxNumColumns(){
+	## AWK script retrun maximal and minimal number of columns in file
+	## ---------------------------------------------------------------------
+	## INPUT: 	$1 	- 		path to file
+	## RETURN: 				on stdout max_number_of_columns, min_number_of_columns
+	awk	'{
+			if(NR == 1){min=NF;max=NF;}
+		    if( NF > max ){
+				max=NF
+			}
+		    if ( NF < min ){
+				min=NF
+			}
+		}
+		END{print max, min}
+		' < $1
+}
+
+#################################################
+####            GNUPLOT FUNCTIONS             ###
+#################################################
+## Script can plot histogram statistics for formated data in form
+## Sweep fractions of particles in different clusters which add to 1
+## 1000 0.1 0.5 0.3 ...
+## 2000 0.2 0.6 0.1 ...
+## 3000 0.1 0.1 0.7 ...
+## ....
+## ....
+## ---------------------------------------------------------------------
+## INPUT: 	$1 	- 		$PLOT string
+##			$2	-		Maximal size of cluster
+## RETURN: 				on stdout plot data by gnuplot
+GNUPLOT_plotStatistics(){
+	max_rows_legend=30
+	max_colu_legend=2
+	legend_width=4
+	if [[ $SILENT == 0 ]]; then
+		PLOT="plot $1;pause mouse keypress"
+	else
+		PLOT=""
+	fi
+	if [[ $PDF_SWITCH == 0 ]]; then
+		PDF_OUT=""
+	else
+		PDF_OUT="set term pdf;set output './${PROC_DIR}/cluster_stat.pdf';plot $1"
+	fi
+gnuplot << EOF
+set style data histogram
+set style histogram rowstacked
+set style fill solid border -2
+set yrange [0:1]
+set boxwidth 0.75
+set key out vert right
+set key maxrows ${max_rows_legend}
+set key maxcols ${max_colu_legend}
+set key width ${legend_width}
+set xtics rotate by 45 offset -2,-2
+set xlabel 'Number of Sweeps [10^3]' offset 0,-2
+set ylabel 'Procentual population of particles in clusters of diferent sizes'
+
+set terminal wxt size 1800,600
+$PLOT
+$PDF_OUT
+EOF
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+## Functin to plot multiple graphs to one pdf one under other
+## INPUT: 	$1 - data for plottin simple line comand for every graph 
+##			$2 - Name of output pdf file
+##			$3 - Rank of current plot
+##			$4 - MaxSize of cluster
+GNUPLOT_multiPlotStatistics(){
+	max_rows_legend=8
+	max_colu_legend=$(bc <<< "if(${4}%${max_rows_legend} == 0){${4}/${max_rows_legend}}else{(${4}/${max_rows_legend})+1}")
+	graph_width=15
+	legend_width=4
+	width=$(bc <<< "${graph_width}+${max_colu_legend}*${legend_width}")
+gnuplot << EOF 
+set style data histogram 
+set style histogram rowstacked 
+set style fill solid border -2 
+set yrange [0:1] 
+set boxwidth 0.75 
+set key out vert right 
+set key maxrows ${max_rows_legend}
+set key maxcols ${max_colu_legend}
+set key width ${legend_width}
+set xtics rotate by 45 offset -2,-2 
+ 
+set term pdf enhanced size ${width}cm,$[$3*5]cm
+set output '${2}'
+set multiplot layout $3,1
+$1
+unset multiplot
+EOF
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+## Functin to plot energy histogram
+## INPUT: 	$1 - Step_size
+##			$2 - input histogram data
+GNUPLOT_plotEnergy(){
+gnuplot << EOF
+binwidth=${1}
+bin(x,width)=width*floor(x/width)
+set xlabel 'Energy in kT/{/Symbol e}'
+set term pdf enhanced
+set output '${2:: -4}.pdf'
+plot '${2}' u (bin(\$1,binwidth)):(1.0) title '' smooth freq w boxes
+EOF
+}
+###########################################
+####            Script Body             ###
+###########################################
+if [[ $# == 0 || $1 == "-h" || $1 == "--help" ]]; then ## Just help?
+	shift
+	BASH_showHelp $@
+	exit 0
+elif [[ ${1} == "-s"  ]]; then ## Calculate statistics?
+	shift
+	BASH_calcStatistics $@
+	exit $?
+elif [[ ${1} == "-sp" ]]; then ## Do we want to plot statistics?
+	shift
+	BASH_plotStatistics $NUM_OF_BINS $@
+	exit $?
+elif [[ ${1} == "-e" ]]; then ## Do we want to create energy distribution of clusters?
+	shift
+	BASH_createEnergyDistribution $@
+	exit $?
+elif [[ ${1} == "-ep" ]]; then ## Do we want to plot energy distribution of clusters?
+	shift
+	BASH_plotEnergyDistribution $@
+	exit $?
+else
+	echo -e "Wrong argument was selected for info type ${0} -h, --help"
+	exit 1
+fi
+

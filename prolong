@@ -1,0 +1,181 @@
+#!/bin/bash
+
+source ~/.bashrc_sc
+source ~/.sc_scripts/script_functions
+
+###############################################
+####            Bash FUNCTIONS              ###
+###############################################
+BASH_showHelp(){
+	## Simple Help
+
+	echo -e ""
+	echo -e "        |==============================|                       "
+	echo -e "        |        Prolongate Sim        |                       "
+	echo -e "        |==============================|                       "
+	echo -e ""
+	echo -e "Script make it easy to prolong simulations (work with infinity job system!!)."
+	echo -e "\nParameters:"
+	echo -e "\t-h\tShow this help message and exit."
+	echo -e ""
+	echo -e "\t-d [Directory Name]\tCopy results of current simulation into new directory and prepare it for new run."
+	echo -e ""
+	echo -e "\t-nr [RUNS]\tProlong finished simulation in current directory by amount of RUNS (same parameters and resources are used)."
+	echo -e ""
+	echo -e "\t-nrR [RUNS] [RESOURCES]\tProlong finished simulation in current directory by amount of RUNS with change in RESOURCES (same parameters are used)."
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_prolongSimNewDir(){
+    DIR_NAME="${1}prolonged_sim"
+    
+    if [ -d $DIR_NAME ];then
+        printError "Directory allready exists ${DIR_NAME}!!!\n"
+        return 1
+    fi
+
+    mkdir $DIR_NAME
+
+	NUM_OF_REPLICAS=$(numOfReplica)      
+    ## TRUE IF new scOOP version of program
+    if [ -d ./mc ]; then
+        if [[ $(isSimulationGrandCanonical) == 1 ]];then ## TRUE if GC sim run
+            printMessage "GrandCanonical sim - OOP\n"
+            cp ./config.last ./top.last ${DIR_NAME}/
+    	    mv ${DIR_NAME}/config.last ${DIR_NAME}/config.init
+    	    mv ${DIR_NAME}/top.last ${DIR_NAME}/top.init
+		else		
+			if [[ $NUM_OF_REPLICAS == 1 ]]; then ## Single run
+	            printMessage "Simple sim - OOP\n"
+	            cp ./config.last ${DIR_NAME}/
+	            mv ${DIR_NAME}/config.last ${DIR_NAME}/config.init
+			elif [[ $NUM_OF_REPLICAS > 1 ]]; then ## Replica exchange
+		        printMessage "Paralel tempering - OOP\n"
+	            NPT=0
+	            while [ -f ./${NPT}config.last ]; do
+		    	    cp ./${NPT}config.last ${DIR_NAME}/
+			        mv ${DIR_NAME}/${NPT}config.last ${DIR_NAME}/${NPT}config.init
+		    	    NPT=$[NPT+1]
+	            done
+			else
+				printError "Problem with counting number of replicas check .sc_scripts/script_functions\n"
+				return 1
+			fi
+		fi
+		cp -r mc/ structures/ CMakeLists.txt main.cpp $(ls -f runscript.* | head -n 1) scOOP.pro options top.init ${DIR_NAME}/
+    else
+		if [[ $NUM_OF_REPLICAS == 1 ]]; then ## Single run
+	    	printMessage "Simple sim - OOP\n"
+	    	cp ./config.last ${DIR_NAME}/
+	    	mv ${DIR_NAME}/config.last ${DIR_NAME}/config.init
+		elif [[ $NUM_OF_REPLICAS > 1 ]]; then ## Replica exchange
+			printMessage "Paralel tempering - OOP\n"
+	    	NPT=0
+	    	while [ -f ./${NPT}config.last ]; do
+				cp ./${NPT}config.last ${DIR_NAME}/
+				mv ${DIR_NAME}/${NPT}config.last ${DIR_NAME}/${NPT}config.init
+		    	NPT=$[NPT+1]
+			done
+		else
+			printError "Problem with counting number of replicas check .sc_scripts/script_functions\n"
+			return 1
+		fi
+		cp top.init options makefile getline.h sc35.c runscript.template ${DIR_NAME}/       
+    fi
+	return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_prolongSim() {
+	## this get number of last run
+	CUR_RUN=$(ls runscript*.stdout | tail -n 2 | head -n 1 | tail -c 11 | head -c 3 | awk '{printf "%d", $1}' 2> /dev/null)
+    saveFiles(){
+        cp ./config.init ./config-${1}.init
+        mv ./config.last ./config.init
+		cp ./top.init ./top-${1}.init
+        if [ -f ./top.last ]; then
+            mv ./top.last ./top.init
+        fi
+		mv ./movie ./movie-${1}
+		mv ./cluster.dat ./cluster-${1}.dat
+		mv ./cluster_stat.dat ./cluster_stat-${1}.dat
+    }
+	if [[ $CUR_RUN == 0 ]]; then
+		CUR_RUN=1
+		## SAVE FILES
+        saveFiles ${CUR_RUN}
+        JOB_NAME=$(ls runscript*.stdout | head -c -8)
+		## Part that specify resources for psubmit
+		if [[ ${1::4} == "-nrR" ]]; then
+			RESOURCES=$3
+		else
+			RESOURCES=$(awk '{if($1 == "INF_ARG_RESOURCES"){print $2}}' < ./${JOB_NAME}.infout)
+		fi
+
+		sed -i 's/.*TOTAL_RUNS=.*$/TOTAL_RUNS='$(bc <<< "${CUR_RUN}+${2}")'/g' ./${JOB_NAME}
+		if [[ ${1::3} == "-nr" || ${1::4} == "-nrR" ]]; then
+			export INF_EXTERNAL_NAME_SUFFIX="#`printf %03d $[ CUR_RUN +1 ]`"
+			export _CURR_RUN=$[ CUR_RUN + 1 ]
+            export INF_EXTERNAL_VARIABLES="_CURR_RUN"
+            pignoreruntimefiles YES;
+			psubmit ${QUEUE_NAME_D} ${JOB_NAME} ${RESOURCES} -y
+		fi
+	else
+        ## SAVE FILES
+        saveFiles ${CUR_RUN}
+		JOB_NAME=$(ls runscript*.stdout | tail -n 2 | head -n 1 | head -c -12)
+		## Part that specify resources for psubmit
+		if [[ ${1::4} == "-nrR" ]]; then
+			RESOURCES=$3
+		else
+			RESOURCES=$(awk '{if($1 == "INF_ARG_RESOURCES"){print $2}}' < ./${JOB_NAME}#$(printf "%03d" ${CUR_RUN}).infout)
+		fi
+
+		sed -i 's/.*TOTAL_RUNS=.*$/TOTAL_RUNS='$[${CUR_RUN}+${2}]'/g' ./${JOB_NAME}
+		if [[ ${1::3} == "-nr" || ${1::4} == "-nrR" ]]; then
+            export INF_EXTERNAL_NAME_SUFFIX="#`printf %03d $[ CUR_RUN +1 ]`"
+			export _CURR_RUN=$[ CUR_RUN + 1 ]
+            export INF_EXTERNAL_VARIABLES="_CURR_RUN"
+            pignoreruntimefiles YES;
+			psubmit ${QUEUE_NAME_D} ${JOB_NAME} ${RESOURCES} -y
+		fi
+	fi
+	return 0
+}
+###########################################
+####            Script Body             ###
+###########################################
+if [[ $# > 0 && $1 != "-h" && $(isSimulationFinished) == 0 ]]; then ## Check if simulation is done ... so we can prolong ... prolonging notfinished simulation can cause many problesm
+	printError "Simulation in current directory is not finished! dir: $(pwd)\n"
+	exit 1
+fi
+
+if [[ $# == 0 || $1 == "-h" ]]; then
+    BASH_showHelp
+	exit 0
+elif [[ $1 == "-d" ]]; then
+	shift
+	BASH_prolongSimNewDir $@
+	exit $?
+elif [[ $1 == "-nr" ]]; then
+	if [[ $(isNumber $2) == 1 ]]; then
+		BASH_prolongSim $@
+	else
+		printError "Second argument must be number of runs by which simulation is prolonged!\n"
+		exit 1
+	fi
+	exit $?
+elif [[ $1 == "-nrR" ]]; then
+	if [[ $(isNumber $2) == 1 ]]; then
+		BASH_prolongSim $@
+	else
+		printError "Second argument must be number of runs by which simulation is prolonged!\n"
+		exit 1
+	fi
+	exit $?
+else
+	echo -e "Wrong argument was selected for info type ${0} -h, --help"
+	exit 1
+fi
+
+

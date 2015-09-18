@@ -1,0 +1,34 @@
+#!/bin/bash
+
+source ~/.bashrc_sc
+source ~/.sc_scripts/script_functions
+
+if [ $# -eq 0 ]; then
+	echo "-----------------------------------------------------"
+	echo -e "\tSC script Help"
+	echo "-----------------------------------------------------"
+	echo ""
+	echo -e "\e[1mList of custom scripts and programs accesible from comand line.\e[0m"
+	echo ""
+	echo -e "\e[4mSimulation preparation:\e[0m"
+	echo -e "		sc_chN; gc_sim"
+	echo -e "\n\e[4mSimulation manipulation:\e[0m"
+	echo -e "		prolong"
+	echo -e "\n\e[4mStatistics and processing:\e[0m"
+	echo -e "		solve; sim_info; cluster_info; show_clusters; show_movie"
+	echo ""
+	echo -e "To UPDATE use     \e[1msc_init -u\e[0m"
+	echo -e "To REINSTALL use  \e[1msc_init -r\e[0m"
+	echo "-----------------------------------------------------"
+	echo "For more info use schelp -l "
+	echo "-----------------------------------------------------"
+elif [[ $1 == "-l" ]]; then
+	echo "-----------------------------------------------------"
+	echo -e "\tSC script Help version: ${CURR_VERSIO}"
+	echo "-----------------------------------------------------"
+	echo ""
+	echo "Help not done yet :/"
+else
+	printError "Non valid argument for schelp!\n"
+fi
+

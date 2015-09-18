@@ -1,0 +1,309 @@
+#!/bin/bash
+
+source ~/.bashrc_sc
+source ~/.sc_scripts/script_functions
+
+CUT_OFF=0.001 ## Procentualni hodnota yastoupeni N-meru od ktere je povayovana za zanedbatelnou
+
+###############################################
+####      Init Processing Directory        ####
+###############################################
+initProcDir
+
+###############################################
+####            Bash FUNCTIONS              ###
+###############################################
+BASH_showHelp(){
+	## Simple Help
+
+	echo -e ""
+	echo -e "        |==============================|                       "
+	echo -e "        |     Calculate properties     |                       "
+	echo -e "        |==============================|                       "
+	echo -e ""
+	echo -e "Script take data from simulation and compute concentration or chemical potential dependence."
+	echo -e "\nParameters:"
+	echo -e "\t-h\tShow this help message and exit."
+	echo -e ""
+	echo -e "\t-f\tCreate fraction file from *cluster_stat_all.dat."
+	echo -e ""
+	echo -e "\t-con\tCalculate concentration of different clusters."
+	echo -e ""
+	echo -e "\t-chp\tCalculate chemical potential difference between monomer particles and particles in cluster of particular size."
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_solveFractions(){ 
+    ## ------------------------------------------------------------------------------------------------------------------------------------ ##
+    ## Function take *cluster_stat_all.dat and create fraction file "*cluster_stat_allF.dat"
+    ## Then from *cluster_stat_allF.dat mean values are count (number of last samples to be taken into averages can be specified by argument)
+    ## ************************************************************************************************************************************ ##
+    ## INPUT: *cluster_stat_all.dat
+    ## RETURN: *cluster_stat_allF.dat, cluster_fraction.dat
+    ## ------------------------------------------------------------------------------------------------------------------------------------ ##
+    ## ToDo let user to specify how many samples are skipped from begining
+    SKIP_NUM_LINES=50 ## mean it start to read on 50 line
+
+	printMessage "Solving cluster fractions\n"
+    if [ -z "$(ls ./${PROC_DIR}/*cluster_stat_all.dat 2> /dev/null)" ]; then
+        printError "In directory $(pwd), missing file/s *cluster_stat_all.dat.\n"
+		printInfo "Use cluster_info -s to create *cluster_stat_all.dat.\n"
+        return 1
+    fi
+	NUM_OF_REPLICAS=$(numOfReplica)
+	TEMP=$(getTemp)
+	PTEMP=$(getPTemp)
+	rm -f ./${PROC_DIR}/cluster_fraction.dat 2> /dev/null
+
+	if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+		AWK_clusterFraction "./${PROC_DIR}/cluster_stat_all.dat" > ./${PROC_DIR}/cluster_stat_allF.dat
+		AWK_columnMean "${TEMP}" "$(tail -n +${SKIP_NUM_LINES} ./${PROC_DIR}/cluster_stat_allF.dat)" > ./${PROC_DIR}/cluster_fraction.dat 
+
+		return 0
+	elif [[ $NUM_OF_REPLICAS > 1 ]]; then ## Paralel tempering
+		TEMP_STEP=$(bc <<< "scale=5;(${PTEMP}-${TEMP})/(${NUM_OF_REPLICAS}-1)")
+		RANK=0
+		while [ -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; do
+			AWK_clusterFraction "./${PROC_DIR}/${RANK}cluster_stat_all.dat" > ./${PROC_DIR}/${RANK}cluster_stat_allF.dat
+			AWK_columnMean "$(echo "scale=5;${TEMP}+${RANK}*${TEMP_STEP}" |bc)" "$(tail -n +${SKIP_NUM_LINES} ./${PROC_DIR}/${RANK}cluster_stat_allF.dat)" >> ./${PROC_DIR}/cluster_fraction.dat
+			RANK=$[RANK+1]
+		done
+
+		return 0	
+	else
+		printError "Problem with counting number of replicas check .sc_scripts/script_functions\n"
+
+		return 1
+	fi
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_calcCon(){
+	VOLUME=$(volumeOfBox)
+    AVERAGE_NUM_OF_PARTICLES=$(averageNumberOfParticles)
+
+    CONCENTRATION=$(bc <<< "scale=17; ${AVERAGE_NUM_OF_PARTICLES} / ${VOLUME}")
+    AWK_clusterConcentration ${CONCENTRATION} ./${PROC_DIR}/cluster_fraction.dat
+
+    return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_calcCemPot(){
+    VOLUME=$(volumeOfBox)
+    AVERAGE_NUM_OF_PARTICLES=$(averageNumberOfParticles)
+
+    CONCENTRATION=$(bc <<< "scale=10; ${AVERAGE_NUM_OF_PARTICLES} / ${VOLUME}")
+
+    if [ ! -f ./${PROC_DIR}/cluster_fraction.dat ]; then
+        printError "Cant read ./${PROC_DIR}/cluster_fraction.dat, use cluster_info -f.\n"
+        return 1
+    fi
+
+	AWK_calcMu  ${CONCENTRATION} ./${PROC_DIR}/cluster_fraction.dat
+
+    return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_calcCemPotP(){
+    AVERAGE_NUM_OF_PARTICLES=$(averageNumberOfParticles)
+
+    if [ ! -f ./${PROC_DIR}/cluster_fraction.dat ]; then
+        printError "Cant read ./${PROC_DIR}/cluster_fraction.dat, use cluster_info -f.\n"
+        return 1
+    fi
+
+	AWK_calcMuP  ${AVERAGE_NUM_OF_PARTICLES} ./${PROC_DIR}/cluster_fraction.dat
+
+    return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+## Here i changed definition of concentration from concentration of ideal particles vs concentration of repulsive spherocylinders
+BASH_calcCemPot2(){
+    VOLUME=$(volumeOfBox)
+    AVERAGE_NUM_OF_PARTICLES=$(averageNumberOfParticles)
+    PARTICLE_VOLUME=$(bc <<< "scale=10;$(volumeOfSpherocylinder "1.2" "3") * ${AVERAGE_NUM_OF_PARTICLES}")
+
+    CONCENTRATION=$(bc <<< "scale=10; ${AVERAGE_NUM_OF_PARTICLES} / (${VOLUME}-${PARTICLE_VOLUME})")
+
+    if [ ! -f ./${PROC_DIR}/cluster_fraction.dat ]; then
+        printError "Cant read ./${PROC_DIR}/cluster_fraction.dat, use cluster_info -f.\n"
+        return 1
+    fi
+
+	AWK_calcMu  ${CONCENTRATION} ./${PROC_DIR}/cluster_fraction.dat
+
+    return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+## Calclulation based on concentration
+BASH_calcCemPotCon(){
+    VOLUME=$(volumeOfBox)
+    AVERAGE_NUM_OF_PARTICLES=$(averageNumberOfParticles)
+
+    if [ ! -f ./${PROC_DIR}/cluster_fraction.dat ]; then
+        printError "Cant read ./${PROC_DIR}/cluster_fraction.dat, use cluster_info -f.\n"
+        return 1
+    fi
+
+	AWK_calcMuCon  ${AVERAGE_NUM_OF_PARTICLES} ./${PROC_DIR}/cluster_fraction.dat
+
+    return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+## Here I changed equation to calculate chem potential for Grand Canonical ensamble
+BASH_calcCemPotGC(){
+    AVERAGE_NUM_OF_PARTICLES=$(averageNumberOfParticles)
+
+    if [ ! -f ./${PROC_DIR}/cluster_fraction.dat ]; then
+        printError "Cant read ./${PROC_DIR}/cluster_fraction.dat, use cluster_info -f.\n"
+        return 1
+    fi
+
+	AWK_calcMuGC ./${PROC_DIR}/cluster_fraction.dat
+
+    return 0
+}
+
+
+###############################################
+####            AWK FUNCTIONS               ###
+###############################################
+AWK_clusterFraction(){
+	## Expres cluster_sta_all.dat in fractions
+	awk		'{
+		sum=0
+		for(i=2; i<=NF; i++){
+            sum+=$i * (i-1)
+        }
+        if(sum == 0){next;}
+		line=$1
+		for(i=2; i<=NF; i++){
+            line=line "\t"($i * (i-1))/sum
+        }
+		print line
+	}
+	' < $1
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+AWK_clusterConcentration(){
+    awk -v C=$1 -v CONVFMT=%.17g '{
+        for(i=2; i<=NF; i++){
+            $i*=C;
+        }
+        print;
+    }' < $2
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+AWK_columnMean(){
+	echo "$2" | awk -v temp=$1 '
+    BEGIN{max_NF=0}
+	{
+        if(NF > max_NF){max_NF=NF}
+		for(i=2; i<=NF; i++){sum[i]+=$i}
+	}
+	END{printf "%-10s\t", temp;for(i=2; i<=max_NF; i++){printf "%-15s\t", sum[i]/NR};printf "\n"}
+	'
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+AWK_calcMu(){
+	## Calculate chem potential from fraction file and overall concentration
+	##Input is file with fractions with format and overall concentration
+	##Input format: "temperature x_monomer x_dimer x_trimer x_... n-mer"
+    awk -v c=$1 'BEGIN{R=1}
+    {
+        for(i=3; i <= NF; i++){
+            T=$1
+            x_m=$2
+            x_N=$i
+            N=i-1
+            mu=(-(R*T)/N)*log(((x_N)/(N*(x_m**N)))*((1/c)**(N-1)))
+            $i=mu
+        }
+        $2=0.0 ##Since difference in chem potential is taken from monomers ... monomer mu=0
+        print $0
+    }' < $2
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+AWK_calcMuP(){
+	## Calculate chem potential from fraction file and overall concentration
+	##Input is file with fractions with format and overall concentration
+	##Input format: "temperature x_monomer x_dimer x_trimer x_... n-mer"
+    awk -v num_part=$1 'BEGIN{k=1}
+    {
+        for(i=3; i <= NF; i++){
+            T=$1
+            x_m=$2
+            x_N=$i
+            N=i-1
+            mu=(-(k*T))*log( (x_N*num_part) / (x_m*num_part*N) )
+            $i=mu
+        }
+        $2=0.0 ##Since difference in chem potential is taken from monomers ... monomer mu=0
+        print $0
+    }' < $2
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+AWK_calcMuCon(){
+	## Calculate chem potential from concentrations
+	##Input is file with fractions with format and overall concentration
+	##Input format: "temperature x_monomer x_dimer x_trimer x_... n-mer"
+    awk -v c=$1 'BEGIN{R=1}
+    {
+        for(i=3; i <= NF; i++){
+            T=$1
+            x_m=$2
+            x_N=$i
+            N=i-1
+            mu=-k*T*(log((x_N*num_part)/(x_m*num_part*N)) +5.4*(x_N*num_part*N-x_m*num_part))
+            $i=mu
+        }
+        $2=0.0 ##Since difference in chem potential is taken from monomers ... monomer mu=0
+        print $0
+    }' < $2
+}
+#########################################################################
+####################### Script Body #####################################
+#########################################################################
+if [[ $# == 0 || $1 == "-h" ]]; then ## Just help?
+	BASH_showHelp
+	exit 0
+elif [[ ${1} == "-f" ]]; then ## Calculate fractions?
+	shift
+	BASH_solveFractions
+	exit $?
+elif [[ ${1} == "-con" ]]; then ## Calculate concentration?
+	shift
+	BASH_calcCon
+	exit $?
+elif [[ ${1} == "-chp" ]]; then ## Calculate chemical potential?
+	shift
+	BASH_calcCemPot
+	exit $?
+elif [[ ${1} == "-chpp" ]]; then ## Calculate chemical potential?
+	shift
+	BASH_calcCemPotP
+	exit $?
+elif [[ ${1} == "-chp2" ]]; then ## Calculate chemical potential?
+	shift
+	BASH_calcCemPot2
+	exit $?
+elif [[ ${1} == "-chpcon" ]]; then ## Calculate chemical potential?
+	shift
+	BASH_calcCemPotCon
+	exit $?
+else
+	printError "Wrong argument was selected for info type ${0} -h\n"
+	exit 1
+fi
+
+

@@ -1,0 +1,93 @@
+#!/bin/bash
+
+## SCRIPT just use sc35 script with movie and topology to show simulation data forom cmd
+
+source ~/.sc_scripts/script_functions
+
+movie=$2
+topology=$3
+
+###############################################
+####            Bash FUNCTIONS              ###
+###############################################
+
+BASH_showHelp(){
+	## Simple Help
+
+	echo -e ""
+	echo -e "        |==============================|                       "
+	echo -e "        |          Show Movie          |                       "
+	echo -e "        |==============================|                       "
+	echo -e ""
+	echo -e "Script use python script to conver movie or config.* format into VMD."
+	echo -e "\nParameters:"
+	echo -e "\t-h\tShow this help message and exit."
+	echo -e ""
+	echo -e "\t-n\t[./movie_path] [./topology_path]\t\t\tShow vmd movie of NVT NPT ensamble."
+	echo -e ""
+	echo -e "\t-g\t[./movie_path] [./topology_path]\t\t\tShow vmd movie of Grand Canonica ensamble."
+}
+
+###########################################
+####            Script Body             ###
+###########################################
+## CHECK mode
+if [[ $1 == "-h" || $# == 0 ]]; then
+	BASH_showHelp
+	exit 0
+elif [[ $1 == "-n" ]]; then
+	g=0
+elif [[ $1 == "-g" ]]; then
+	g=1
+else
+	printError "Unknown argument ${1}, use -g or -n.\n"
+	exit 1
+fi
+
+##CHECK movie file
+if [ ! -f ./${movie} ]; then
+	printError "Movie file doesnt exists: ${movie}.\n"
+	exit 1
+fi
+
+##CHECK topology file
+if [ ! -f ./${topology} ]; then
+	printError "Topology file doesnt exists: ${topology}.\n"
+	exit 1
+fi
+
+## CHECK IF VMD COMAND is possible in current shell
+if [ -z "$(type -p vmd)" ]; then
+    module add vmd
+fi
+
+if [ ! -d ./mov ]; then
+    mkdir mov
+fi
+
+##CHECK movie length
+MOV_LEN=$(wc -l ./${movie})
+if [[ ${MOV_LEN} > 10000 ]]; then
+	printWarning "Movie file is longer then 10000 line movie file will be cut and only last 10000 will be used.\n"
+	tail -n 10000 ./${movie} > ./mov/movie_tmp
+	tail -n +$(awk 'BEGIN{counter=0}{if(NF>1){counter++;}else{print counter+1;exit}}' ./mov/movie_tmp) ./mov/movie_tmp > ./mov/movie_shorter
+	rm ./mov/movie_tmp
+	movie=movie_shorter
+fi
+
+
+cp ./$movie  ./$topology ./mov 2>/dev/null
+
+if [[ $1 == "-g" ]]; then
+    cd mov
+    ~/.sc_scripts/sc35-movie.py -t ./${topology} -i ./${movie} -g $g
+    vmd -e vmd.script
+    cd ..
+else
+    cd mov
+     ~/.sc_scripts/sc353.py -t ./${topology} -i ./${movie}
+    vmd -e vmd.script
+    cd ..
+fi
+
+

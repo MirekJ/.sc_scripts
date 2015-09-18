@@ -1,0 +1,132 @@
+#!/bin/bash
+
+source ~/.bashrc_sc
+source ~/.sc_scripts/script_functions
+
+## GC basic files and directories
+BASE="./mc ./structures ./unitTests CMakeLists.txt main.cpp runscript* options top.init config.init pool"
+
+###############################################
+####            Bash FUNCTIONS              ###
+###############################################
+
+BASH_showHelp(){
+	## Simple Help
+
+	echo -e ""
+	echo -e "        |==============================|                       "
+	echo -e "        |  Prepare GC simulation Info  |                       "
+	echo -e "        |==============================|                       "
+	echo -e ""
+	echo -e "Script create GC simulation for range of temperatures and activity."
+	echo -e "\nParameters:"
+	echo -e "\t-h\tShow this help message and exit."
+	echo -e ""
+	echo -e "\t-t\t[./temperatures] [ACTIVITY]\t\t\tPrepare simulation directories for different temperatures."
+	echo -e ""
+	echo -e "\t-tr\t[./temperatures] [ACTIVITY] [RESOURCES]\t\tPrepare simulation directories for different temperatures and run all simulations."
+	echo -e "\t\t[Optional]"
+	echo -e "\t\t-tr\t[./temperatures] [ACTIVITY] [RESOURCES] (PQUEUE_NAME)\t\tFor more information about infinity queues use comand \"pqueue\"."
+	echo -e ""
+	echo -e "|EXAMPLES|"
+	echo -e "\tgc_sim -t ./temp \"0.007\"\t-- ./tem have format \"0.10 0.20 0.310 ...\" will create set of directories in current directory and set all activities to 0.007"
+	echo -e "\tgc_sim -tr ./temp \"0.007\" \"scartch=2gb,mem=2gb,walltime=2d\" \"long\"\t-- for temp and anctivity same as previous new are props for psubmit and optional argument for pqueue/"
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_createTemperatures(){
+	TEMPERATURES="$(cat $1)"
+	printMessage "${TEMPERATURES}\n"
+	for CURENT_TEMP in ${TEMPERATURES}; do
+		mkdir T_$CURENT_TEMP
+		printMessage "Prep temperature: ${CURENT_TEMP}\n"
+		cp -r $BASE ./T_${CURENT_TEMP}
+		cd ./T_${CURENT_TEMP}
+		sed -i 's/<TEMP>/'${CURENT_TEMP}'/g' ./options
+		sed -i 's/<PTEMP>/'${CURENT_TEMP}'/g' ./options
+		sed -i 's/<ACTIVITY>/'$2'/g' ./top.init   
+		cd ../
+    done
+    printMessage "DONE\n"
+    return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_createTemperaturesRun(){
+	if [[ $4 != "" ]]; then
+		QUEUE_TYPE=$4
+	else
+		QUEUE_TYPE=$(getSubmitQueue)
+		if [[ $QUEUE_TYPE == "UNKNOWN" ]]; then
+			printError "Unknown site! Dont know to which queue you want to submit ... specifie queue in comand see gc_sim -h!\n"
+			exit(1)
+		fi
+	fi
+	TEMPERATURES="$(cat $1)"
+	printMessage "${TEMPERATURES}\n"
+	for CURENT_TEMP in ${TEMPERATURES}; do
+		mkdir T_$CURENT_TEMP
+		printMessage "Prep temperature: ${CURENT_TEMP}\n"
+		cp -r $BASE ./T_${CURENT_TEMP}
+		cd ./T_${CURENT_TEMP}
+		sed -i 's/<TEMP>/'${CURENT_TEMP}'/g' ./options
+		sed -i 's/<PTEMP>/'${CURENT_TEMP}'/g' ./options
+		sed -i 's/<ACTIVITY>/'$2'/g' ./top.init
+		psubmit $QUEUE_TYPE runscript* $3 -y
+		cd ../
+    done
+    printMessage "DONE\n"
+    return 0
+}
+
+###########################################
+####            Script Body             ###
+###########################################
+
+if [[ $# == 0 || $1 == "-h" ]]; then ## Just help?
+	BASH_showHelp
+	exit 0
+elif [[ ${1} == "-t" ]]; then ## Just create multiple temperatures GC simulation?
+	shift
+	if [[ $# == 2 || $# == 3 ]]; then ## Check right number of arguments
+		if [ -f $1 ]; then ## Check if temperature file exists
+			if [[ $(isNumber $2) == 1 ]]; then ## Check if Activity is number
+				BASH_createTemperatures $@
+				exit $?
+			else
+				printError "Third argument is not a number!\n"
+				exit 1
+			fi
+		else
+			printError "Supplied temperature file doesnt exists!\n"
+			exit 1
+		fi
+	else
+		printError "Supplied wrong number of parameters!\n"
+		printInfo "For ${0} ${1} 2 parameters must be specified (or 3 if silence mode is enable).\n"
+	fi
+elif [[ ${1} == "-tr" ]]; then ## Do you also want to run it?
+	shift
+	if [[ $# == 3 || $# == 4 ]]; then ## Check right number of arguments
+		if [ -f $1 ]; then ## Check if temperature file exists
+			if [[ $(isNumber $2) == 1 ]]; then ## Check if Activity is number
+				BASH_createTemperaturesRun $@
+				exit $?
+			else
+				printError "Third argument is not a number!\n"
+				exit 1
+			fi
+		else
+			printError "Supplied temperature file doesnt exists!\n"
+			exit 1
+		fi
+	else
+		printError "Supplied wrong number of parameters!\n"
+		printInfo "For ${0} ${1} 3 parameters must be specified (or 4 if silence mode is enable).\n"
+	fi
+else
+	printError "Wrong argument was selected for info type ${0} -h, --help\n"
+	exit 1
+fi
+
+

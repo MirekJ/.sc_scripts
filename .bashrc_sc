@@ -1,0 +1,77 @@
+alias sc_chN='~/scripts/psc/psc-genconf-chN.py'
+alias sct_chN='~/scripts/psc/psc-genconf-chN_term.py'
+
+export LC_NUMERIC="en_US.UTF-8"
+
+if [[ ! -v SILENT ]]; then
+	export SILENT=0
+fi
+
+## HELP ##
+schelp(){
+    ~/.sc_scripts/help $@
+}
+
+## MY SCRIPTS
+protected_directories=".sc_scripts psc"
+
+sc_init(){
+    ~/.sc_scripts/.sc_init $@
+}
+
+cluster_info(){
+if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
+	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
+else
+    ~/.sc_scripts/cluster_info $@
+fi
+}
+
+sim_info(){
+if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
+	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
+else
+	~/.sc_scripts/sim_info $@
+fi
+}
+
+gc_sim(){
+if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
+	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
+else
+	~/.sc_scripts/gc_sim $@
+fi
+}
+
+prolong(){
+if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
+	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
+else
+    ~/.sc_scripts/prolong $@
+fi
+}
+
+solve(){
+if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
+	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
+else
+	~/.sc_scripts/solve $@ 
+fi
+}
+
+show_clusters(){
+if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
+	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
+else
+	~/.sc_scripts/show_clusters $@
+fi
+}
+
+show_movie(){
+if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
+	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
+else
+	~/.sc_scripts/show_movie $@
+fi
+}
+

@@ -1,0 +1,25 @@
+#!/bin/bash
+
+if [[ $# == 0 || $1 == "-i" || $1 == "--install" ]]; then
+	## get rest of date from git
+	rm -rf ~/.sc_scripts
+	cd ~/
+	git clone https://github.com/MirekJ/.sc_scripts
+	if [ -z "$(cat ~/.bashrc | grep -n "## SC scripts source.*")" ]; then
+		echo "Ading SC source into ~/.bashrc ....."
+		echo -e "\n## SC scripts source\nif [ -f ~/.sc_scripts/.bashrc_sc ]; then\n\t. ~/.sc_scripts/.bashrc_sc\nfi" >> ~/.bashrc
+		echo -e "\e[92mSC source added into ~/.bashrc\e[0m"
+	fi
+	echo "-----------------------------------------------------"
+	echo -e "\e[92mINSTALL COMPLETED\e[0m"
+	echo -e "\e[1;34mINFO:\e[0m To use scripts type source ~/.bashrc or open new shell."
+	echo "Help to scripts can be shown by schelp"
+	echo "-----------------------------------------------------"
+	exit 0
+elif [[ $1 == "-u" ]]; then
+	git -C ~/.sc_scripts pull
+elif [[ $1 == "-r" ]]; then
+	git -C ~/.sc_scripts fetch origin master
+	git -C ~/.sc_scripts reset --hard FETCH_HEAD
+	git -C ~/.sc_scripts clean -df
+fi

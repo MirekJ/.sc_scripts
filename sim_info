@@ -1,0 +1,199 @@
+#!/bin/bash
+
+source ~/.bashrc_sc
+source ~/.sc_scripts/script_functions
+
+CUT_OFF=0.001
+
+###############################################
+####            Bash FUNCTIONS              ###
+###############################################
+
+BASH_showHelp(){
+	## Simple Help
+
+	echo -e ""
+	echo -e "        |==============================|                       "
+	echo -e "        |       Simulation Info        |                       "
+	echo -e "        |==============================|                       "
+	echo -e ""
+	echo -e "Script extract useful informations about simulation runs."
+	echo -e "\nParameters:"
+	echo -e "\t-h\tShow this help message and exit."
+	echo -e ""
+	echo -e "\t-n\tPrint basic informations about NVT NPT simulations."
+	echo -e ""
+	echo -e "\t-g\tPrint basic informations about Grand Canonical simulations."
+	echo -e ""
+	echo -e "\t-s\tPlot formated information about all simulations in subdirectories."
+	echo -e "\t\t[Format]"
+	echo -e "\t\tst\tPrint infinity status of simulations (R-running, Q-queued ...)."
+	echo -e "\t\tsd\tPrint drifts from simulations."
+	echo -e ""
+	echo -e "\t-nump\tPlot number of particles at different sweeps (usefull only in GC)."
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_toDeepestDir(){
+num_dict=$(ls -d *prolonged_sim 2> /dev/null | wc -l)
+while [ $num_dict -gt 0 ]; do
+    cd $(ls -d *prolonged_sim | head -n 1)
+    num_dict=$(ls -d *prolonged_sim 2> /dev/null | wc -l)
+done
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_grandCanonSimInfo(){
+    AVERAGE_NUM_OF_PARTICLES=$(averageNumberOfParticles)
+    VOLUME=$(volumeOfBox)
+    VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder "1.2" "3")*$AVERAGE_NUM_OF_PARTICLES")
+	FREE_VOLUME=$(bc <<< "scale=10; ${VOLUME} - ${VOLUME_OF_PARTICLES}")
+    VOLUME_FRACTION=$(bc <<< "scale=10;${VOLUME_OF_PARTICLES}/${VOLUME}")
+
+	printAcceptance
+
+	printWarning "In calculation of particle volume explicitli spherocylinders with sigma=1.2 and length=3 are used!\n"
+    echo -e "Volume:\t\t\t\t\t$VOLUME\t\t(Free volume: ${FREE_VOLUME})"
+	echo -e "Average number of particles:\t\t$AVERAGE_NUM_OF_PARTICLES"
+    echo -e "Volume fraction:\t\t\t$VOLUME_FRACTION"
+	echo -e "Concentration:\t\t\t\t$(bc <<< "scale=10; ${AVERAGE_NUM_OF_PARTICLES} / ${VOLUME} ")"
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_normSimInfo(){
+    NUM_OF_PARTICLES=$(bc <<< "$(cat < $(ls *config*.init | head -n 1) | wc -l )-1")
+    NUM_TEMP=$(numOfReplica)
+    if [[ $NUM_TEMP == 1 ]]; then ## NO PARALEL TEMPERING
+        VOLUME=$(volumeOfBox)
+        VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder "1.2" "3")*$NUM_OF_PARTICLES")
+		FREE_VOLUME=$(bc <<< "scale=10; ${VOLUME} - ${VOLUME_OF_PARTICLES}")
+        VOLUME_FRACTION=$(echo "scale=10;${VOLUME_OF_PARTICLES}/${VOLUME}" | bc)
+
+		printWarning "In calculation of particle volume explicitli spherocylinders with sigma=1.2 and length=3 are used!\n"
+		echo -e "Volume:\t\t\t\t\t$VOLUME\t\t(Free volume: ${FREE_VOLUME})"
+		echo -e "Number of particles:\t\t\t$NUM_OF_PARTICLES"
+    	echo -e "Volume fraction:\t\t\t$VOLUME_FRACTION"
+		echo -e "Concentration:\t\t\t\t$(bc <<< "scale=10; ${NUM_OF_PARTICLES} / ${VOLUME} ")"
+
+    elif [[ $NUM_TEMP > 1 ]]; then ## PARALELE TEMPERING
+        TEMP=$(getTemp)
+        PTEMP=$(getPTemp)
+        TEMP_STEP=$(echo "scale=5;(${PTEMP}-${TEMP})/(${NUM_TEMP}-1)" | bc)
+        
+        VOLUME=$(volumeOfBox)
+        VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder "1.2" "3")*$NUM_OF_PARTICLES")
+		FREE_VOLUME=$(bc <<< "scale=10; ${VOLUME} - ${VOLUME_OF_PARTICLES}")
+        VOLUME_FRACTION=$(echo "scale=10;${VOLUME_OF_PARTICLES}/${VOLUME}" | bc)
+
+		printWarning "In calculation of particle volume explicitli spherocylinders with sigma=1.2 and length=3 are used!\n"
+		echo -e "Volume:\t\t\t\t\t$VOLUME\t\t(Free volume: ${FREE_VOLUME})"
+		echo -e "Number of particles:\t\t\t$NUM_OF_PARTICLES"
+    	echo -e "Volume fraction:\t\t\t$VOLUME_FRACTION"
+		echo -e "Concentration:\t\t\t\t$(bc <<< "scale=10; ${NUM_OF_PARTICLES} / ${VOLUME} ")"
+    fi
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_simStatus(){
+    printf "\t| Status: " $(basename $(pwd))
+        case $(pstatus) in
+            P) printf "\e[34;1mP\e[0mrepared";;
+            Q) printf "\e[35;1mQ\e[0mueued";;
+            R) printf "\e[32;1mR\e[0munning";;
+            K) printf "\e[31;1mK\e[0milled";;
+            F) printf "\e[92;1mF\e[0minished";;
+            IN) printf "\e[101;1mIN\e[0mconsistend";;
+            UN) printf "\e[101;1mUN\e[0mknown";;
+            *) printf "NEKDO NECO PRIDAL :)";;
+        esac
+    $@
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_simDrift(){
+    printf "\t| Drifts:"
+    echo -n $(cat *.stdout 2> /dev/null | grep -n "Energy drift" | awk '{print $3}')
+    $@
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_simulationInfo(){
+	## Create formated string with information what to call in output
+	format=""
+    while (( "$#" )); do
+        case $1 in
+            st) format="${format} BASH_simStatus";;
+            sd) format="${format} BASH_simDrift";;
+        esac
+       shift
+    done
+
+    LS=$(ls -d */)
+    counter01=0 ## pro vytisknuti horizontalniho oddelovace
+    for dir in $LS; do
+        cd $dir
+		#Check if directory contain simulations
+        infinityfile=$(ls *.infex 2> /dev/null )
+        if [ ! -z "$infinityfile" ]; then
+            if (( ($counter01 % 5) == 0 )); then
+                printf "===================================================================================================\n"
+            fi
+            printf "$%8s >>> " $(basename $(pwd))
+			## Here magic happends :) foramted string is called and different functions are used so formated line is printed out
+            $format
+            printf "\n" 
+			counter01=$[counter01+1]
+        fi
+        cd ../        
+    done
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_numberOfParticles(){
+    if [ -z "$(ls ./movie* 2> /dev/null )" ]; then
+        printError "Directory doesnt contain ./movie* file!"
+		exit 1
+    else
+		initProcDir
+        rm -rf ./${PROC_DIR}/num_part.dat 2> /dev/null
+        awk 'BEGIN{i=1}{if(NF == 1){print i "\t" $1;i++}}' $(ls -f movie-? movie-?? movie 2> /dev/null ) >> ./proc/num_part.dat
+		NMBER_OF_POINTS=$(cat ./proc/num_part.dat | wc -l)
+		awk -v interval=$(bc <<< "$NMBER_OF_POINTS / 100") 'BEGIN{counter=1}{sum=0;for(i=0;i<interval;i++){sum+=$2;getline};print counter, sum/interval;counter++}' ./proc/num_part.dat > ./proc/num_part_edited.dat
+        if [[ $SILENT == "0" ]]; then
+gnuplot <<-EOF
+set xlabel 'Frame number'
+set ylabel 'Number of particles'
+plot './proc/num_part_edited.dat' w lines
+pause mouse keypress
+EOF
+        fi
+    fi
+    exit 0
+}
+###########################################
+####            Script Body             ###
+###########################################
+if [[ $# == 0 || $1 == "-h" ]]; then
+	BASH_showHelp
+	exit 0
+elif [[ $1 == "-g" ]]; then
+	shift
+	BASH_grandCanonSimInfo
+	exit $?
+elif [[ $1 == "-n" ]]; then
+	shift
+	BASH_normSimInfo
+	exit $?
+elif [[ $1 == "-s" ]]; then
+	shift
+	BASH_simulationInfo $@
+	exit $?
+elif [[ $1 == "-nump" ]]; then
+	shift
+	BASH_numberOfParticles $@
+	exit $?
+else
+	printError "Wrong argument was selected for info type ${0} -h, --help\n"
+	exit 1
+fi
+

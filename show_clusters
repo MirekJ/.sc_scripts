@@ -1,0 +1,356 @@
+#!/bin/bash
+
+## SCRIPT take clusters of different size from specified energy interval and extract them from movie file and create new movie file to examine them
+
+
+## TO DO
+## sledovat vyvoj ruznych castic ........ respektive vyfiltrovat urcitou podmnozinu castic, problem v GC ... 
+## nebot to defacto nejde castice se obevuji a myzi cize na pozici 1 v configu mohou byt ruzne castice v ruznych sweepech :(
+
+source ~/.sc_scripts/script_functions
+DEBUG=""
+
+#########################################################################
+####################### Bash FUNCTIONS ##################################
+#########################################################################
+
+showHelp(){
+	## Simple Help
+
+	echo -e ""
+	echo -e "        |==============================|                       "
+	echo -e "        |        Show Clusters         |                       "
+	echo -e "        |==============================|                       "
+	echo -e ""
+    echo "Script take cluster data and use them to select different clusters, by specifications, then"
+    echo "to clusters actual representaion imn movie file is found and selected clusters are shown in"
+    echo "separet movie file where every cluster has its own frame."
+    echo ""
+    echo "First parameter is switch which tels what are input data:"
+    echo -e "\t-h --help : Show this help message"
+    echo -e "\t-n : means normal imput, second argument is cluster.dat file and third is movie file"
+    echo -e "\t-a : means all cluster.dat files and movie files in current directory are condensated into"
+    echo -e "\t     two different files which are then used as input."
+    echo -e "Next argument is second switch which determine by which properties clusters are selected"
+    echo -e "\t-s : means clusters of certain size are selected where actual size is next argument"
+    echo -e "\t-se: means clusters of certain size and energy are selected, where next argument is size"
+    echo -e "\t     and then mean energy of cluster and last argument is size of interval in which"
+    echo -e "\t     energies are selected"
+    echo -e "And las argument switch determine wheather u want to show results or not"
+    echo -e "\t-S : means relusts are interactivly shown in vmd after selection is done"
+    echo "============================================================================================"
+    echo "EXAMPLES:"
+    echo -e "\t -n ./cluster-2.dat ./movie-2 -s 3 -S"
+    echo -e "\t select clusters of size 3 from second run of simulation and show results interactivly."
+    echo -e "\t -a -se 3 -10.2 0.2 -S"
+    echo -e "\t this will show interactilvy clusters of size 3 from whole simulation whith energy of -10.2+-0.2"
+}
+
+CL_DIR="cl_show"
+ClSelClSize(){
+    #CL_SIZE=3
+    CL_SIZE=$1
+    MOVIE_WRITE_FREQ=1000
+
+    cat $2 | awk -v sweeps=$MOVIE_WRITE_FREQ -v cl_size=$CL_SIZE '
+            BEGIN{cl_counter=0; clusters[0]=""}
+            {
+            if($1 == "Sweep:" && $2%sweeps == 0){
+                num_of_clusters=$7
+                sweep = $2
+                was_there_new_cluster = 0
+                for(i=1; i<= num_of_clusters; i++){
+                    getline
+                    match($1,".*\((-[0-9.]*)\)",energy)
+                    if ( (NF-1) == cl_size  && $1 != "Sweep:"){
+                        $1=""
+                        new_cluster=1
+                        for(i=0; i <= cl_counter; i++){
+                            if( clusters[i] == $0){
+                                new_cluster=0
+                                break
+                            }
+                        }
+                        if(new_cluster == 1){
+                            if( was_there_new_cluster == 0){
+                                printf "%s | ", sweep
+                            }
+                            was_there_new_cluster = 1
+                            cl_counter++
+                            clusters[cl_counter] = $0
+                            printf "%s -",$0
+                        }
+                    }
+                }
+                if( was_there_new_cluster == 1){
+                    printf "\n"
+                }
+            }
+        }'
+}
+
+ClSelEnergyClSize(){
+    #ENERGY=-11.0
+    ENERGY=$1
+    #ENERGY_INTERVAL=0.8
+    ENERGY_INTERVAL=$2
+    #CL_SIZE=3
+    CL_SIZE=$3
+    MOVIE_WRITE_FREQ=1000
+
+    cat $4 | awk -v sweeps=$MOVIE_WRITE_FREQ -v E=$ENERGY -v E_interv=$ENERGY_INTERVAL -v cl_size=$CL_SIZE '
+            BEGIN{cl_counter=0; clusters[0]=""}
+            {
+            if($1 == "Sweep:" && $2%sweeps == 0){
+                num_of_clusters=$7
+                sweep = $2
+                was_there_new_cluster = 0
+                for(i=1; i<= num_of_clusters; i++){
+                    getline
+                    match($1,".*\((-[0-9.]*)\)",energy)
+                    if ( (((E - energy[1])<0?-1*(E-energy[1]):E-energy[1]) < E_interv) && ((NF-1) == cl_size) && ($1 != "Sweep:") ){
+                        $1=""
+                        new_cluster=1
+                        for(i=0; i <= cl_counter; i++){
+                            if( clusters[i] == $0){
+                                new_cluster=0
+                                break
+                            }
+                        }
+                        if(new_cluster == 1){
+                            if( was_there_new_cluster == 0){
+                                printf "%s | ", sweep
+                            }
+                            was_there_new_cluster = 1
+                            cl_counter++
+                            clusters[cl_counter] = $0
+                            printf "%s -",$0
+                        }
+                    }
+                }
+                if( was_there_new_cluster == 1){
+                    printf "\n"
+                }
+            }
+        }'
+}
+
+
+condense_movie_cluster(){
+printMessage "\n************************************************\n"
+printMessage "\e[1mConcentration\e[0m of data from multiple runs\n"
+## cluster condense
+rm -f ./${CL_DIR}/movie_all 2> /dev/null
+rm -f ./${CL_DIR}/cluster_all.dat 2> /dev/null
+NUM_SIM=1
+SWEEP=0
+printf "\e[1mConcentreating cluster*.dat files\e[0m .."
+while [ -f cluster-${NUM_SIM}.dat ]; do
+    printf "."
+    cat cluster-${NUM_SIM}.dat | awk -v sweep_shift=$SWEEP '{if( $1 == "Sweep:" ){$2=$2+sweep_shift;add=$2};print}END{print "|>> "add}' > ./${CL_DIR}/cluster_all.tmp
+    SWEEP=$(tail -n 1 ./${CL_DIR}/cluster_all.tmp | awk '{print $2}')
+    head -n -1 ./${CL_DIR}/cluster_all.tmp >> ./${CL_DIR}/cluster_all.dat
+    NUM_SIM=$[ NUM_SIM + 1 ]
+done
+cat cluster.dat | awk -v sweep_shift=$SWEEP '{if( $1 == "Sweep:" ){$2=$2+sweep_shift;add=$2};print}' >> ./${CL_DIR}/cluster_all.dat
+printf "\n"
+printMessage "cluster.dat files were condensated into cluster_all.dat.\n"
+
+## movie condense
+NUM_SIM=1
+SWEEP=0
+printf "\e[1mConcentreating movie* files\e[0m .."
+while [ -f movie-${NUM_SIM} ]; do
+    printf "."
+    cat movie-${NUM_SIM} | awk -v sweep_shift=$SWEEP '{if( $1 == "sweep" ){split($2,a,";");add=a[1]+sweep_shift;$2=add";"};print}END{print "|>> "add}' > ./${CL_DIR}/movie_all.tmp
+    SWEEP=$(tail -n 1 ./${CL_DIR}/movie_all.tmp | awk '{print $2}')
+    head -n -1 ./${CL_DIR}/movie_all.tmp >> ./${CL_DIR}/movie_all
+    NUM_SIM=$[ NUM_SIM + 1 ]
+done
+cat movie | awk -v sweep_shift=$SWEEP '{if( $1 == "sweep" ){split($2,a,";");add=a[1]+sweep_shift;$2=add";"};print}' >> ./${CL_DIR}/movie_all
+head -n -1 ./${CL_DIR}/movie_all.tmp >> ./${CL_DIR}/movie_all
+printf "\n"
+printMessage "movie files were condensated into movie_all."
+
+printMessage "Removing temporary files ..."
+rm -f ./${CL_DIR}/*.tmp
+echo -e "\n\e[1mConcentration\e[0m of data from multiple runs \e[1;32mDONE\e[0m"
+echo "---------------------------------------------------"
+}
+
+
+if [[ $# == 0 || $1 == "-h" || $1 == "--help" ]]; then
+	showHelp
+    exit 0
+fi  
+
+printWarning "Script use option where movie is written every 1000 sweep !!\n"
+printMessage "************************************************\n"
+#DODELATE neni tezke nacist z option v current directory
+if [ ! -d ./${CL_DIR} ]; then
+    mkdir ./${CL_DIR}
+fi
+
+## deal with imput type
+if [[ ${1::2} == "-n" ]]; then
+    if [ -f $2 ]; then
+        CL_PATH=$2
+    else
+        printError "Cluster.dat file doesnt exists!\n"
+        exit 1
+    fi
+    if [ -f $3 ]; then
+        MOVIE_PATH=$3
+    else
+        printError "Movie file doesnt exists!\n"
+        exit 0
+    fi
+    shift 3
+elif [[ ${1::2} == "-a" ]]; then
+    if [[ ${1::3} == "-aF" ]]; then
+        printInfo "Forcefull recalculation for all data was set by -*F argument.\n"
+        condense_movie_cluster
+    else
+        if [ ! -f ./${CL_DIR}/cluster_all.dat ]; then
+            condense_movie_cluster
+        fi
+    fi
+    CL_PATH="./${CL_DIR}/cluster_all.dat"
+    MOVIE_PATH="./${CL_DIR}/movie_all"
+    shift 1
+else
+    echo "Unknown first argument!! See help -h"
+    exit 1
+fi
+### deal with selection type
+if [[ ${1} == "-s" ]]; then
+    CL_SIZE=$2
+    printMessage "\n\e[1mSelecting\e[0m clusters from ${CL_PATH} .....\n"
+    ClSelClSize $CL_SIZE $CL_PATH 2> /dev/null 1> ./${CL_DIR}/cluster.tmp
+    if [ -z "$(cat ./${CL_DIR}/cluster.tmp)" ]; then
+        printError "No clusters which corespond to selection were found!\n"
+        printInfo "My be caused by different sampling requency in movie and cluster.\n"
+		exit 1
+    fi
+    printMessage "\e[1;32mDONE\e[0m\n"
+	
+    printMessage "************************************************\n"
+	
+    PSEUDO_SWEEP=1
+    rm -f ./${CL_DIR}/cmovie 2> /dev/null
+    BOX=$(sed 's/.*box\(.*\)$/\1/' <<< "$( head -n 2 ${MOVIE_PATH} | tail -n 1 )" )
+    
+    printf "\e[1mCutting\e[0m clusters from %s .." ${MOVIE_PATH}
+    while read line; do
+        printDebugL "1" "\nLine: $line"
+        sweep=$(sed 's/\(.*\)|.*/\1/' <<< "$line")
+        particles=$(sed 's/.*|\(.*\)/\1/' <<< "$line")
+        printDebugL "1" "\nSweep: $sweep"
+        printDebugL "1" "\nParticles: $particles"
+        printf "."
+        while [ ! -z "$particles" ]; do
+            echo "$CL_SIZE" >> ./${CL_DIR}/cmovie
+            echo "sweep ${PSEUDO_SWEEP}; box${BOX}" >> ./${CL_DIR}/cmovie
+            PSEUDO_SWEEP=$[ PSEUDO_SWEEP +1 ]
+            clusters=$(sed 's/\([^-]*\)-.*/\1/' <<< "$particles")
+            particles=$(sed 's/[^-]*-\(.*\)$/\1/' <<< "$particles")
+            printDebugL "1"  "\nCluster: $clusters"
+            printDebugL "1"  "\nRest of clusters: $particles"
+            ## call function to create movie
+            data=$(selectParticlesFromMovie $sweep "$clusters" ${MOVIE_PATH} )
+            printDebugL "1"  "\nDATA:\n$data"
+            ## put data into movie
+            echo -e "$data" >> ./${CL_DIR}/cmovie
+        done
+    done < ./${CL_DIR}/cluster.tmp
+    printf "\n"
+    printMessage "************************************************\n"
+    shift 2
+elif [[ ${1} == "-se" ]]; then
+    CL_SIZE=$2
+    CL_ENERGY=$3
+    CL_ENERGY_DIFF=$4
+    printMessage "\n\e[1mSelecting\e[0m clusters from ${CL_PATH} .....\n"
+    ClSelEnergyClSize $CL_ENERGY $CL_ENERGY_DIFF $CL_SIZE $CL_PATH 2> /dev/null 1> ./${CL_DIR}/cluster.tmp
+    if [ -z "$(cat ./${CL_DIR}/cluster.tmp)" ]; then
+        printWarning "\e[1;33mWARNING:\e[0m no clusters which corespond to selection were found!\n"
+        printInfo "\e[1;34mINFO:\e[0m My be caused by different sampling requency in movie and cluster.\n"
+    fi
+    printMessage "\e[1;32mDONE\e[0m\n"
+    printMessage "************************************************\n"
+
+    PSEUDO_SWEEP=1
+    rm -f ./${CL_DIR}/cmovie 2> /dev/null
+    BOX=$(sed 's/.*box\(.*\)$/\1/' <<< "$( head -n 2 ${MOVIE_PATH} | tail -n 1 )" )
+    
+    printf "\e[1mCutting\e[0m clusters from %s .." ${MOVIE_PATH}
+    while read line; do
+        printDebugL "1"  "\nLine: $line"
+        sweep=$(sed 's/\(.*\)|.*/\1/' <<< "$line")
+        particles=$(sed 's/.*|\(.*\)/\1/' <<< "$line")
+        printDebugL "1"  "\nSweep: $sweep"
+        printDebugL "1" "\nParticles: $particles"
+        printf "."
+        while [ ! -z "$particles" ]; do
+            echo "$CL_SIZE" >> ./${CL_DIR}/cmovie
+            echo "sweep ${PSEUDO_SWEEP}; box${BOX}" >> ./${CL_DIR}/cmovie
+            PSEUDO_SWEEP=$[ PSEUDO_SWEEP +1 ]
+            clusters=$(sed 's/\([^-]*\)-.*/\1/' <<< "$particles")
+            particles=$(sed 's/[^-]*-\(.*\)$/\1/' <<< "$particles")
+            printDebugL "1" "\nCluster: $clusters"
+            printDebugL "1" "\nRest of clusters: $particles"
+            ## call function to create movie
+            data=$(selectParticlesFromMovie $sweep "$clusters" ${MOVIE_PATH} )
+            printDebugL "1" "\nData:\n$data"
+            ## put data into movie
+            echo -e "$data" >> ./${CL_DIR}/cmovie
+        done
+    done < ./${CL_DIR}/cluster.tmp
+    printf "\n"
+    printMessage "************************************************\n"
+    shift 4
+else
+    printError "Unknown selection switch!!\n"
+    exit 1
+fi
+printMessage "All selected types of cluster are in ./cmovie\n"
+
+### SELECTION PART
+### SELECTION BY SIZE AND ENERGY
+
+if [[ ${1::2} == "-S" ]]; then
+    printMessage "\e[1mShowing selected clusters ...\e[0m\n"
+	NUM_OF_REPLICAS=$(numOfReplica)
+    if [ -f ./top.init ]; then
+        cp top.init ./${CL_DIR}/
+    else
+        printError "Canot acces ./top.init\n"
+        printInfo "top.init is important to show clusters in vmd provide top.init in current directory!\n"
+        printError "\e[1;31mERRORNEOUS TERMINATION\e[0m\n"
+        exit 1
+    fi
+    cd ./${CL_DIR}
+    ## CHECK IF VMD COMAND is possible in current shell
+    if [ -z "$(type -p vmd)" ]; then
+        module add vmd
+    fi
+
+	if [[ $NUM_OF_REPLICAS == 1 ]]; then
+	    ~/.sc_scripts/sc35-movie.py -t top.init -i cmovie -g 1
+	else
+		head -n -1 ./top.init > top_new.init
+		echo "A $CL_SIZE" >> top_new.init
+		~/.sc_scripts/sc353.py -t top_new.init -i cmovie
+	fi
+    vmd -e vmd.script
+    TGA=$(ls *.tga 2> /dev/null)
+    if [ ! -z "$TGA" ]; then
+        printMessage "Converting *.tga into *.png\n"
+        for pict in $TGA; do
+    	    convert $pict "${pict::-3}png"
+        done
+        rm -f *.tga *.dat 2> /dev/null
+    fi
+    cd ../
+fi
+printMessage "\e[1;32mSCRIPT DONE\e[0m\n"
