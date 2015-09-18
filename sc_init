@@ -17,9 +17,17 @@ if [[ $# == 0 || $1 == "-i" || $1 == "--install" ]]; then
 	echo "-----------------------------------------------------"
 	exit 0
 elif [[ $1 == "-u" ]]; then
-	git -C ~/.sc_scripts pull
+	if [ -d ~/.sc_scripts ]; then
+		git -C ~/.sc_scripts pull
+	else
+		echo "You cant update when scripts were not installed yet!"
+	fi
 elif [[ $1 == "-r" ]]; then
-	git -C ~/.sc_scripts fetch origin master
-	git -C ~/.sc_scripts reset --hard FETCH_HEAD
-	git -C ~/.sc_scripts clean -df
+	if [ -d ~/.sc_scripts ]; then
+		git -C ~/.sc_scripts fetch origin master
+		git -C ~/.sc_scripts reset --hard FETCH_HEAD
+		git -C ~/.sc_scripts clean -df
+	else
+		echo "You cant reinstall when scripts were not installed yet!"
+	fi
 fi
