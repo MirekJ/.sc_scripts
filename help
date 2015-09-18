@@ -1,6 +1,5 @@
 #!/bin/bash
 
-source ~/.sc_scripts/.bashrc_sc
 source ~/.sc_scripts/script_functions
 
 if [ $# -eq 0 ]; then
