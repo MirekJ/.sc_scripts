@@ -4,7 +4,7 @@
 ##	potreba aby se dal specifikovat pocet Binu pri ploceni statistiky
 ##	potreba pridat moznost -pf FILE_PATH pro ploceni do pdf
 
-source ~/.bashrc_sc
+source ~/.sc_scripts/.bashrc_sc
 source ~/.sc_scripts/script_functions
 
 ###############################################

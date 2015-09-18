@@ -1,6 +1,6 @@
 #!/bin/bash
 
-source ~/.bashrc_sc
+source ~/.sc_scripts/.bashrc_sc
 source ~/.sc_scripts/script_functions
 
 ###############################################
