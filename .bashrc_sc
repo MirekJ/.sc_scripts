@@ -16,7 +16,7 @@ schelp(){
 protected_directories=".sc_scripts psc"
 
 sc_init(){
-    ~/.sc_scripts/.sc_init $@
+    ~/.sc_scripts/sc_init $@
 }
 
 cluster_info(){
