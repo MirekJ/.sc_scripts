@@ -59,7 +59,7 @@ BASH_createTemperaturesRun(){
 		QUEUE_TYPE=$(getSubmitQueue)
 		if [[ $QUEUE_TYPE == "UNKNOWN" ]]; then
 			printError "Unknown site! Dont know to which queue you want to submit ... specifie queue in comand see gc_sim -h!\n"
-			exit(1)
+			exit 1
 		fi
 	fi
 	TEMPERATURES="$(cat $1)"
