@@ -312,17 +312,18 @@ BASH_plotStatistics(){
 		## Get maximal size of cluster from cluster_stat_all.plot
 		MAX_CL_SIZE=$(awk '{}END{print NF}' < ./${PROC_DIR}/cluster_stat_all.plot)
 
+
 		## Create plot string
 		if [ -d ./${PROC_DIR}/clusters ]; then
 			if [[ $(bc <<< "$MAX_CL_SIZE - 2") > $MAX_CLUSTER_SIZE ]]; then
 				MAX_CLUSTER_SIZE=$[MAX_CL_SIZE-2]
 			fi
 
-			PLOT=" './${PROC_DIR}/cluster_stat_all.plot' u 2:xtic(1) title 'Monomer-iregular', '' u 3 title 'MonomerAA-regular',"
 			## There were geometric cluster selection and clusters of size n are divided into regular and iregular part
+			PLOT=" './${PROC_DIR}/cluster_stat_all.plot' u 2:xtic(1) title 'Monomer-iregular', '' u 3 title 'Monomer-regular',"
 			curr_size=2
 			for ((i=4; i<=MAX_CL_SIZE; i=i+2))do
-				PLOT="$PLOT '' u ${i} title 'Cl size $(($i-1))-iregular', '' u $(($i+1)) title 'Cl size ${i}-regular',"
+				PLOT="$PLOT '' u ${i} title 'Cl size ${curr_size}-iregular', '' u $(($i+1)) title 'Cl size ${curr_size}-regular',"
 				curr_size=$(($curr_size+1))
 			done
 		else
