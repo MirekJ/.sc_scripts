@@ -707,7 +707,7 @@ GNUPLOT_plotStatistics(){
 	if [[ $PDF_SWITCH == 0 ]]; then
 		PDF_OUT=""
 	else
-		PDF_OUT="set term pdf;set output './${PROC_DIR}/cluster_stat.pdf';plot $1"
+		PDF_OUT="set term pdf;set output './${PROC_DIR}/cluster_stat.pdf';plot ${1}"
 	fi
 gnuplot << EOF
 set style data histogram
@@ -723,7 +723,6 @@ set xtics rotate by 45 offset -2,-2
 set xlabel 'Number of Sweeps [10^3]' offset 0,-2
 set ylabel 'Procentual population of particles in clusters of diferent sizes'
 
-set terminal wxt size 1800,600
 $PLOT
 $PDF_OUT
 EOF

@@ -1,6 +1,36 @@
 #!/bin/bash
 
-if [[ $# == 0 || $1 == "-i" || $1 == "--install" ]]; then
+###############################################
+####            Bash FUNCTIONS              ###
+###############################################
+
+BASH_showHelp(){
+	## Simple Help
+	if [[ $# == 0 ]]; then
+		echo -e ""
+		echo -e "        |==============================|                       "
+		echo -e "        |           SC INIT            |                       "
+		echo -e "        |==============================|                       "
+		echo -e ""
+		echo -e "Script to install and update SC scripts."
+		echo -e "\nParameters:"
+		echo -e "\t-h\tShow this help message and exit."
+		echo -e ""
+		echo -e "\t-i\tInstall or reinstall sc_scripts."
+		echo -e ""
+		echo -e "\t-u\tSoft update (recomended)."
+		echo -e ""
+		echo -e "\t-r\tHard update (not recomended)."
+		echo -e ""
+	else
+		printError "No expanded options allowed!\n"
+		return 1
+	fi
+	return 0
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_scInstall(){
 	## get rest of date from git
 	rm -rf ~/.sc_scripts
 	cd ~/
@@ -16,13 +46,19 @@ if [[ $# == 0 || $1 == "-i" || $1 == "--install" ]]; then
 	echo "Help to scripts can be shown by schelp"
 	echo "-----------------------------------------------------"
 	exit 0
-elif [[ $1 == "-u" ]]; then
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_softUpdate(){
 	if [ -d ~/.sc_scripts ]; then
 		git -C ~/.sc_scripts pull
 	else
 		echo "You cant update when scripts were not installed yet!"
 	fi
-elif [[ $1 == "-r" ]]; then
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_hardUpdate(){
 	if [ -d ~/.sc_scripts ]; then
 		git -C ~/.sc_scripts fetch origin master
 		git -C ~/.sc_scripts reset --hard FETCH_HEAD
@@ -30,4 +66,29 @@ elif [[ $1 == "-r" ]]; then
 	else
 		echo "You cant reinstall when scripts were not installed yet!"
 	fi
+}
+
+###########################################
+####            Script Body             ###
+###########################################
+if [[ $# == 0 || $1 == "-h" || $1 == "--help" ]]; then ## Just help?
+	shift
+	BASH_showHelp $@
+	exit 0
+elif [[ ${1} == "-i"  ]]; then ## Calculate statistics?
+	shift
+	BASH_scInstall
+	exit $?
+elif [[ ${1} == "-u" ]]; then ## Do we want to plot statistics?
+	shift
+	BASH_softUpdate
+	exit $?
+elif [[ ${1} == "-r" ]]; then ## Do we want to plot statistics?
+	shift
+	BASH_hardUpdate
+	exit $?
+else
+	echo -e "Wrong argument was selected for info type ${0} -h, --help"
+	exit 1
 fi
+
