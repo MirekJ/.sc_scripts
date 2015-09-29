@@ -710,7 +710,7 @@ GNUPLOT_plotStatistics(){
 		PDF_OUT=""
 	else
 		PLOT=""
-		PDF_OUT="set term pdf enhanced size ${width}cm,$[$3*5]cm;set output './${PROC_DIR}/cluster_stat.pdf';plot ${1}"
+		PDF_OUT="set term pdf enhanced size ${width}cm,5cm;set output './${PROC_DIR}/cluster_stat.pdf';plot ${1}"
 	fi
 gnuplot << EOF
 set style data histogram
@@ -735,7 +735,7 @@ EOF
 ## Functin to plot multiple graphs to one pdf one under other
 ## INPUT: 	$1 - data for plottin simple line comand for every graph 
 ##			$2 - Name of output pdf file
-##			$3 - Rank of current plot
+##			$3 - Number of sub-plots
 ##			$4 - MaxSize of cluster
 GNUPLOT_multiPlotStatistics(){
 	max_rows_legend=8
