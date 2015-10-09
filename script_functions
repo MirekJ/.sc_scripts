@@ -206,6 +206,21 @@ isNumber() {
 	echo $(awk -v a="$1" 'BEGIN {if( a != "" ){print (a == a + 0)}else{print 0}}';)
 }
 
+getFileName(){
+	## input is path to file
+	## return name of file without extension
+	filename=$(basename "${1}")
+	echo "${filename%.*}"
+}
+
+getFileExtension(){
+	## input is path to file
+	## return extension of file
+	filename=$(basename "${1}")
+	echo "${filename##*.}"
+}
+
+
 maxNumOfColumns(){
 	## Function return maximum number of columns from formated string can be also file
 	## usage k=$(maxNumOfColumns "$(cat ./test.txt)")   or k=$(maxNumOfColumns "$text")
