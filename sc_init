@@ -4,6 +4,9 @@
 ####            Bash FUNCTIONS              ###
 ###############################################
 
+GIT_REP_PATH="--work-tree=${HOME}/.sc_scripts/"
+#GIT_REP_PATH="-C ~/.sc_scripts"
+
 BASH_showHelp(){
 	## Simple Help
 	if [[ $# == 0 ]]; then
@@ -51,7 +54,7 @@ BASH_scInstall(){
 #-------------------------------------------------------------------------------------
 BASH_softUpdate(){
 	if [ -d ~/.sc_scripts ]; then
-		git -C ~/.sc_scripts pull
+		git $GIT_REP_PATH pull
 	else
 		echo "You cant update when scripts were not installed yet!"
 	fi
@@ -60,9 +63,9 @@ BASH_softUpdate(){
 #-------------------------------------------------------------------------------------
 BASH_hardUpdate(){
 	if [ -d ~/.sc_scripts ]; then
-		git -C ~/.sc_scripts fetch origin master
-		git -C ~/.sc_scripts reset --hard FETCH_HEAD
-		git -C ~/.sc_scripts clean -df
+		git $GIT_REP_PATH fetch origin master
+		git $GIT_REP_PATH reset --hard FETCH_HEAD
+		git $GIT_REP_PATH clean -df
 	else
 		echo "You cant reinstall when scripts were not installed yet!"
 	fi
