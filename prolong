@@ -23,6 +23,7 @@ BASH_showHelp(){
 	echo -e "\t-nr [RUNS]\tProlong finished simulation in current directory by amount of RUNS (same parameters and resources are used)."
 	echo -e ""
 	echo -e "\t-nrR [RUNS] [RESOURCES]\tProlong finished simulation in current directory by amount of RUNS with change in RESOURCES (same parameters are used)."
+	echo -e "\t-nrRQ [RUNS] [RESOURCES] [QUEUE]\tProlong finished simulation in current directory by amount of \e[1mRUNS\e[0m with change in \e[1mRESOURCES\e[0m and send it to \e[1mQUEUE\e[0m."
 }
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
@@ -100,6 +101,11 @@ BASH_prolongSim() {
 		mv ./cluster.dat ./cluster-${1}.dat
 		mv ./cluster_stat.dat ./cluster_stat-${1}.dat
     }
+
+	if [[ $# == 4 ]]; then
+		QUEUE_NAME_D="$4"
+	fi
+
 	if [[ $CUR_RUN == 0 ]]; then
 		CUR_RUN=1
 		## SAVE FILES
