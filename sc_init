@@ -4,7 +4,7 @@
 ####            Bash FUNCTIONS              ###
 ###############################################
 
-GIT_REP_PATH="--work-tree=${HOME}/.sc_scripts/"
+GIT_REP_PATH="--git-dir=${HOME}/.sc_scripts/.git --work-tree=${HOME}/.sc_scripts/"
 #GIT_REP_PATH="-C ~/.sc_scripts"
 
 BASH_showHelp(){
