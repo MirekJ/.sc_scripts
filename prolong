@@ -179,8 +179,16 @@ elif [[ $1 == "-nrR" ]]; then
 		exit 1
 	fi
 	exit $?
+elif [[ $1 == "-nrRQ" ]]; then
+	if [[ $(isNumber $2) == 1 ]]; then
+		BASH_prolongSim $@
+	else
+		printError "Second argument must be number of runs by which simulation is prolonged!\n"
+		exit 1
+	fi
+	exit $?
 else
-	echo -e "Wrong argument was selected for info type ${0} -h, --help"
+	echo -e "Wrong argument was selected for info type $(basename ${0}) -h, --help"
 	exit 1
 fi
 
