@@ -25,7 +25,7 @@ BASH_showHelp(){
 	echo -e "\t-t\t[./temperatures] [ACTIVITY]\t\t\tPrepare simulation directories for different temperatures."
 	echo -e ""
 	echo -e "\t-tr\t[./temperatures] [ACTIVITY] [RESOURCES]\t\tPrepare simulation directories for different temperatures and run all simulations."
-	echo -e "\t-ka\t\t\tKill All simulations for different temperatures in current directory! (use with caution!)"
+	echo -e "\t-ka\t\t\t\t\t\t\tKill All simulations for different temperatures in current directory! (use with caution!)"
 	echo -e "\t\t[Optional]"
 	echo -e "\t\t-tr\t[./temperatures] [ACTIVITY] [RESOURCES] (PQUEUE_NAME)\t\tFor more information about infinity queues use comand \"pqueue\"."
 	echo -e ""
