@@ -25,12 +25,23 @@ BASH_showHelp(){
 	echo -e "\t-t\t[./temperatures] [ACTIVITY]\t\t\tPrepare simulation directories for different temperatures."
 	echo -e ""
 	echo -e "\t-tr\t[./temperatures] [ACTIVITY] [RESOURCES]\t\tPrepare simulation directories for different temperatures and run all simulations."
+	echo -e "\t-ka\t\t\tKill All simulations for different temperatures in current directory! (use with caution!)"
 	echo -e "\t\t[Optional]"
 	echo -e "\t\t-tr\t[./temperatures] [ACTIVITY] [RESOURCES] (PQUEUE_NAME)\t\tFor more information about infinity queues use comand \"pqueue\"."
 	echo -e ""
 	echo -e "|EXAMPLES|"
 	echo -e "\tgc_sim -t ./temp \"0.007\"\t-- ./tem have format \"0.10 0.20 0.310 ...\" will create set of directories in current directory and set all activities to 0.007"
 	echo -e "\tgc_sim -tr ./temp \"0.007\" \"scartch=2gb,mem=2gb,walltime=2d\" \"long\"\t-- for temp and anctivity same as previous new are props for psubmit and optional argument for pqueue/"
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+BASH_KillAllTemp(){
+	for temp in `ls -d T_*`; do
+		cd ${temp}
+		pkill -y
+		cd ../
+	done
+	return 0
 }
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
@@ -124,6 +135,10 @@ elif [[ ${1} == "-tr" ]]; then ## Do you also want to run it?
 		printError "Supplied wrong number of parameters!\n"
 		printInfo "For ${0} ${1} 3 parameters must be specified (or 4 if silence mode is enable).\n"
 	fi
+elif [[ ${1} == "-ka" ]]; then ## Do you also want to run it?
+	shift
+	BASH_KillAllTemp
+	exit $?
 else
 	printError "Wrong argument was selected for info type ${0} -h, --help\n"
 	exit 1
