@@ -27,6 +27,15 @@ else
 fi
 }
 
+exp_cluster_info(){
+if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
+	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
+else
+    ~/.sc_scripts/cluster_info_experimental $@
+fi
+}
+
+
 sim_info(){
 if [[ $protected_directories == *"$(basename $(pwd))"* ]]; then
 	echo -e "\e[1;91mProtected directory cant use script here!!!\e[0m"
