@@ -433,7 +433,7 @@ BASH_createEnergyDistribution(){
     		## Cycle through all sizes of clusters and create separet plots for every cluster size
     		for (( i=${MIN_CLUSTER}; i<=${MAX_CLUSTER}; i++)); do
 				printMessage "Solving clusters of size ${i}\n"
-		    	cat ./${PROC_DIR}/cluster_all.dat | awk -v cluster=${i} '{if($1 != "Sweep:" && NF == cluster+1){match($1, "\((-[0-9.]*)\)",energy);print energy[0]}}' > ./${PROC_DIR}/cluster_CS${i}.dat
+		    	cat ./${PROC_DIR}/cluster_all.dat | awk -v cluster=${i} '{if($1 != "Sweep:" && NF == cluster+1){match($1, "\((-[0-9.]*)\)",energy);print energy[0]}}' 2>/dev/null > ./${PROC_DIR}/cluster_CS${i}.dat
 			done
 		else
 			printError "Unknow second option ${1}, aviable options are \" \" or -a.\n"
