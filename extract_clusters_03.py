@@ -403,7 +403,7 @@ class ParticleCluster(object):
         else:
             return True
 
-    def isHomoMer():
+    def isHomoMer(self):
         for i in xrange(len(self.__particleList)-1):
             if( self.__particleList[i][0].mol != self.__particleList[i+1][0].mol ):
                 return False
