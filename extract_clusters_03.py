@@ -299,8 +299,8 @@ class ParticleCluster(object):
         self.com            = vec3(0.0,0.0,0.0)
         
 
-    ## Data structure is    clusterList = [ particle, particle, particle ]
-    ##                      particle    = [ParticleConf, mass, ...]
+    ## Data structure is    __particleList = [ particle, particle, particle ]
+    ##                      particle       = [ ParticleConf, mass, ... ]
 
     def __CENTEROFMASS(self):
         mass_of_cluster = 0.0
@@ -403,6 +403,11 @@ class ParticleCluster(object):
         else:
             return True
 
+    def isHomoMer():
+        for i in xrange(len(self.__particleList)-1):
+            if( self.__particleList[i][0].mol != self.__particleList[i+1][0].mol ):
+                return False
+        return True
 
    
     def isClusterRegular2(self, tolerance):
@@ -606,7 +611,8 @@ def main(cluster_file_PATH, movie_file_PATH, box):
                 #if(cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
                 ## Special for tetramer from two dimers
                 #if(cluster.isClusterParallel(ANGLE_TOLERANCE) and not cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
-                if(cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
+                #if(cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
+                if(cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and cluster.isHomoMer() and cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
                 #if(cluster.arePatchsPointingToCOM_TCPSC(PATCH_ANGLE_TOLERANCE,box,TCPSC_ANGLE) and cluster.isClusterParallel(ANGLE_TOLERANCE) and cluster.isClusterRegular2(DISTANCE_FROM_COM_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
                     output_data[int(sweep[0])][cluster.size]['r']+=1;                    
                     output_data["files"][cluster.size]["out_r"].write(cluster.MovieFrame(output_data["files"][cluster.size]["r_count"],box).Show())
@@ -619,7 +625,8 @@ def main(cluster_file_PATH, movie_file_PATH, box):
                 #if(cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
                 ## Special for tetramer from two dimers
                 #if(cluster.isClusterParallel(ANGLE_TOLERANCE) and not cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size))):
-                if(cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
+                #if(cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
+                if(cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and cluster.isHomoMer() and cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
                 #if(cluster.arePatchsPointingToCOM_TCPSC(PATCH_ANGLE_TOLERANCE,box,TCPSC_ANGLE) and cluster.isClusterParallel(ANGLE_TOLERANCE) and cluster.isClusterRegular2(DISTANCE_FROM_COM_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
                     output_data[int(sweep[0])].update({cluster.size:{'r':1,'i':0}})
                     if(not (cluster.size in output_data["files"])):
