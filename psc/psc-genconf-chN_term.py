@@ -19,23 +19,23 @@ import usefulmath
 
 def gennewcoord(pbc):
     #generate random vector on 1 sphere
-    orient=usefulmath.vec_random()
-    orient=usefulmath.vec_normalize(orient)
+    orient = usefulmath.vec_random()
+    orient = usefulmath.vec_normalize(orient)
 
     #generate position
-    pos=[random.random()*float(pbc[0]),random.random()*float(pbc[1]),random.random()*float(pbc[2])]
+    pos = [random.random()*float(pbc[0]),random.random()*float(pbc[1]),random.random()*float(pbc[2])]
     
     #generate patch (perpendicular to orientation of cylinder)
-    patch=usefulmath.perp_vec(orient)
-    patch=usefulmath.vec_normalize(patch)
+    patch = usefulmath.perp_vec(orient)
+    patch = usefulmath.vec_normalize(patch)
     
     #return [pos,orient]
     return [pos,orient,patch]
 
 def make(numsc,numch,pbc):
-    data=[]
+    data = []
     ## step size is basicly lenghth of sc ... length by which sc is shifted
-    step_size=4.2
+    step_size = 4.2
     #print numsc,numch,pbc,output_path
 
     for i in xrange(int(numch)):
@@ -43,7 +43,7 @@ def make(numsc,numch,pbc):
     ##data in form [sc, sc, ..] sc=[[center],[orientation],[patch orientation]]
     #print data
 
-    new_data=[]
+    new_data = []
     for i in range(int(numch)):
         for t in range(int(numsc)):
             #print "\n\n\n",t
@@ -55,14 +55,14 @@ def make(numsc,numch,pbc):
     for i in xrange(len(new_data)):
         for part in new_data[i]:
             for piece in part:
-                outstring+=str(piece)+" "
-	if i < len(new_data)-1:
-	    outstring+=" 0 0\n"
-    outstring+=" 0 0"
+                outstring += "% 13e "%(piece)
+            outstring = outstring[:-1]+"\t"
+        outstring += "\t0 0\n"
+    outstring = outstring[:-1]
 
     boxsize = ""
     for i in pbc:
-        boxsize+=i+" "
+        boxsize += i+" "
     print boxsize
     print outstring
 
