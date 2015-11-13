@@ -227,6 +227,25 @@ maxNumOfColumns(){
 	echo $(printf "$1" | awk 'BEGIN{max=0}{if( NF > max ){max=NF}}END{print max}')
 }
 
+fillTable(){
+	## Function take file of numbers get maximum number of columns and fill missing data with zeroes or any other string if second argument is defined
+	## usage: k=$(fillWithZeroes ./file (optional) '#') ---> this will fill each missing data with '#'
+	if [[ $# == 2 ]]; then
+		SUB=$2
+	else
+		SUB="0"
+	fi
+	awk -v max=$(maxNumOfColumns "$(cat ${1})") -v substitute=$SUB '{
+		line=$0;
+		if( NF < max ){
+			for( i=0; i < max-NF; i++){
+				line=line" "substitute
+			}
+		}
+		print line;
+	}' < $1
+}
+
 getSubmitQueue(){
 	## Function simply chceck on which site we are and base on that select queue for submitting and properties
 	CURENT_SITE="$(site active 2>&1)"
