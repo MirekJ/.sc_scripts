@@ -235,15 +235,15 @@ fillTable(){
 	else
 		SUB="0"
 	fi
-	awk -v max=$(maxNumOfColumns "$(cat ${1})") -v substitute=$SUB '{
+	awk -v max=$(maxNumOfColumns "$(cat ${1})") -v substitute=$SUB -v output=$1 '{
 		line=$0;
 		if( NF < max ){
 			for( i=0; i < max-NF; i++){
 				line=line" "substitute
 			}
 		}
-		print line;
-	}' < $1 > $1
+		print line > output;
+	}' < $1
 }
 
 getSubmitQueue(){
