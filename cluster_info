@@ -46,6 +46,8 @@ BASH_showHelp(){
 		echo -e "\t\t-pdf\tIf specified all output is set to pdf. (For more info type cluster_info -h -sp)"
 		echo -e "\t\t-bin\tIf specified next argument after -bin is number of bins for plotting. (For more info type cluster_info -h -sp)"
 		echo -e ""
+		echo -e "\t-sps\tShow mean and standard deviation of simulations."
+		echo -e ""
 		echo -e "\t-e\tCreate Energy histograms."
 		echo -e "\t\t[Optional]"
 		echo -e "\t\t-a\tCreate separet energy histogram for each cluster size."
