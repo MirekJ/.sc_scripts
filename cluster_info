@@ -415,10 +415,10 @@ BASH_calcMeanClusterDistributions(){
 		else
 			printError "No cluster_stat_all.dat in ./${PROC_DIR}/ run first cluster_info -s;cluster_info -sp!\n"
 		fi
-	else
-		while [ -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; do
-			
-		done
+#	else
+#		while [ -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; do
+#			
+#		done
 	fi
 }
 #-------------------------------------------------------------------------------------
