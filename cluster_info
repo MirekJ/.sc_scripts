@@ -411,14 +411,19 @@ BASH_calcMeanClusterDistributions(){
 	NUM_OF_REPLICAS=$(numOfReplica)
 	if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
 		if [ -f ./${PROC_DIR}/cluster_stat_all.dat ]; then
-			echo $( ~/.sc_scripts/python/calcStatistics.py -i ./${PROC_DIR}/cluster_stat_all.dat -m "mean|std" -c "all" | awk '{$0="";print}')
+			 ~/.sc_scripts/python/calcStatistics.py -i ./proc/cluster_stat_all.plot -m "mean|std" -c "all" | awk '{for(i=3;i<=NF;i+=2){print "\t"i-1"-mer number: "$i"\t\t| std: "$(i+1);}}'
 		else
-			printError "No cluster_stat_all.dat in ./${PROC_DIR}/ run first cluster_info -s;cluster_info -sp!\n"
+			printError "No cluster_stat_all.plot in ./${PROC_DIR}/ run first cluster_info -s;cluster_info -sp!\n"
 		fi
-#	else
-#		while [ -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; do
-#			
-#		done
+	else
+		RANK=0
+		TEMP=$(getTemp)
+		TEMP_STEP=$(getTempStep)
+		while [ -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; do
+			echo "Temperature: $(bc <<< "$TEMP_STEP * $RANK")"
+			~/.sc_scripts/python/calcStatistics.py -i ./proc/${RANK}cluster_stat_all.plot -m "mean|std" -c "all" | awk '{for(i=3;i<=NF;i+=2){print "\t"i-1"-mer number: "$i"\t\t| std: "$(i+1);}}'
+			RANK=$[RANK+1]
+		done
 	fi
 }
 #-------------------------------------------------------------------------------------
