@@ -36,12 +36,13 @@ BASH_showHelp(){
 BASH_scInstall(){
 	## get rest of date from git
 	rm -rf ~/.sc_scripts
+	rm -rf ~/.bashrc_sc
 	cd ~/
 	git clone https://github.com/MirekJ/.sc_scripts
-	if [ -z "$(cat ~/.bashrc | grep -n "## SC scripts source.*")" ]; then
+	if [ -z "$(cat ~/.bashrc_user | grep -n "## SC scripts source.*")" ]; then
 		echo "Ading SC source into ~/.bashrc ....."
-		echo -e "\n## SC scripts source\nif [ -f ~/.sc_scripts/.bashrc_sc ]; then\n\t. ~/.sc_scripts/.bashrc_sc\nfi" >> ~/.bashrc
-		echo -e "\e[92mSC source added into ~/.bashrc\e[0m"
+		echo -e "\n## SC scripts source\nif [ -f ~/.sc_scripts/.bashrc_sc ]; then\n\t. ~/.sc_scripts/.bashrc_sc\nfi" >> ~/.bashrc_user
+		echo -e "\e[92mSC source added into ~/.bashrc_user\e[0m"
 	fi
 	echo "-----------------------------------------------------"
 	echo -e "\e[92mINSTALL COMPLETED\e[0m"
@@ -67,7 +68,7 @@ BASH_hardUpdate(){
 		git $GIT_REP_PATH reset --hard FETCH_HEAD
 		git $GIT_REP_PATH clean -df
 	else
-		echo "You cant reinstall when scripts were not installed yet!"
+		echo "You cant reinstall when scripts are not installed yet!"
 	fi
 }
 
