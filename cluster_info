@@ -407,6 +407,22 @@ BASH_plotStatistics(){
 }
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
+BASH_calcMeanClusterDistributions(){
+	NUM_OF_REPLICAS=$(numOfReplica)
+	if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
+		if [ -f ./${PROC_DIR}/cluster_stat_all.dat ]; then
+			echo $( ~/.sc_scripts/python/calStatistics.py -i ./${PROC_DIR}/cluster_stat_all.dat -m "mean|std" -c "all" | awk '{$0="";print}')
+		else
+			printError "No cluster_stat_all.dat in ./${PROC_DIR}/ run first cluster_info -s;cluster_info -sp!\n"
+		fi
+	else
+		while [ -f ./${PROC_DIR}/${RANK}cluster_stat_all.dat ]; do
+			
+		done
+	fi
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
 BASH_createEnergyDistribution(){
 	## Is simulation paralel tempering?
 	NUM_OF_REPLICAS=$(numOfReplica)
@@ -785,6 +801,10 @@ elif [[ ${1} == "-s"  ]]; then ## Calculate statistics?
 elif [[ ${1} == "-sp" ]]; then ## Do we want to plot statistics?
 	shift
 	BASH_plotStatistics $NUM_OF_BINS $@
+	exit $?
+elif [[ ${1} == "-sps" ]]; then ## Do we want to statistic of plots?
+	shift
+	BASH_calcMeanClusterDistributions $@
 	exit $?
 elif [[ ${1} == "-e" ]]; then ## Do we want to create energy distribution of clusters?
 	shift
