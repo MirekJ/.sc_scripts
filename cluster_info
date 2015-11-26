@@ -411,7 +411,7 @@ BASH_calcMeanClusterDistributions(){
 	NUM_OF_REPLICAS=$(numOfReplica)
 	if [[ $NUM_OF_REPLICAS == 1 ]]; then ## No replica exchange
 		if [ -f ./${PROC_DIR}/cluster_stat_all.dat ]; then
-			echo $( ~/.sc_scripts/python/calStatistics.py -i ./${PROC_DIR}/cluster_stat_all.dat -m "mean|std" -c "all" | awk '{$0="";print}')
+			echo $( ~/.sc_scripts/python/calcStatistics.py -i ./${PROC_DIR}/cluster_stat_all.dat -m "mean|std" -c "all" | awk '{$0="";print}')
 		else
 			printError "No cluster_stat_all.dat in ./${PROC_DIR}/ run first cluster_info -s;cluster_info -sp!\n"
 		fi
