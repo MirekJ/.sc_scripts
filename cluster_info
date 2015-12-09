@@ -338,7 +338,7 @@ BASH_plotStatistics(){
 				PLOT="$PLOT '' u ${i} title 'Cl size $(($i-1))',"
 			done
 		fi
-		PLOT=${PLOT:: -1}
+		PLOT=${PLOT%?}
 
 		## Call gnuplot function GNUPLOT_plotStatistics(PLOT string)
 		printMessage "Done\n"
@@ -394,11 +394,11 @@ BASH_plotStatistics(){
 					PLOT="$PLOT '' u ${i} title 'Cl size $(($i-1))',"
 				done
 			fi
-			PLOT=${PLOT:: -1}
+			PLOT=${PLOT%?}
 			PLOT="${PLOT};"
 			RANK=$[RANK+1]
 		done
-		PLOT=${PLOT:: -1}
+		PLOT=${PLOT%?}
 		GNUPLOT_multiPlotStatistics "$PLOT" "./${PROC_DIR}/cluster_stat.pdf" "$NUM_OF_REPLICAS" "$MAX_CLUSTER_SIZE"
 		printMessage "Done\n"
 	else
