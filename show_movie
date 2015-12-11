@@ -66,14 +66,14 @@ if [ ! -d ./mov ]; then
 fi
 
 ##CHECK movie length
-MOV_LEN=$(wc -l ./${movie})
-if [[ ${MOV_LEN} > 10000 ]]; then
-	printWarning "Movie file is longer then 10000 line movie file will be cut and only last 10000 will be used.\n"
-	tail -n 10000 ./${movie} > ./mov/movie_tmp
-	tail -n +$(awk 'BEGIN{counter=0}{if(NF>1){counter++;}else{print counter+1;exit}}' ./mov/movie_tmp) ./mov/movie_tmp > ./mov/movie_shorter
-	rm ./mov/movie_tmp
-	movie=movie_shorter
-fi
+#MOV_LEN=$(wc -l ./${movie})
+#if [[ ${MOV_LEN} > 10000 ]]; then
+#	printWarning "Movie file is longer then 10000 line movie file will be cut and only last 10000 will be used.\n"
+#	tail -n 100000 ./${movie} > ./mov/movie_tmp
+#	tail -n +$(awk 'BEGIN{counter=0}{if(NF>1){counter++;}else{print counter+1;exit}}' ./mov/movie_tmp) ./mov/movie_tmp > ./mov/movie_shorter
+#	rm ./mov/movie_tmp
+#	movie=movie_shorter
+#fi
 
 
 cp ./$movie  ./$topology ./mov 2>/dev/null
