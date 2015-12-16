@@ -101,7 +101,7 @@ BASH_simStatus(){
         case $(pstatus) in
             P) printf "\e[34;1mP\e[0mrepared";;
             Q) printf "\e[35;1mQ\e[0mueued";;
-            R) printf "\e[32;1mR\e[0munning";;
+            R) printf "\e[33;1mR\e[0munning";;
             K) printf "\e[31;1mK\e[0milled";;
             F) printf "\e[92;1mF\e[0minished";;
             IN) printf "\e[101;1mIN\e[0mconsistend";;
