@@ -90,6 +90,8 @@ BASH_prolongSimNewDir(){
 BASH_prolongSim() {
 	## this get number of last run
 	CUR_RUN=$(ls runscript*.stdout | tail -n 2 | head -n 1 | tail -c 11 | head -c 3 | awk '{printf "%d", $1}' 2> /dev/null)
+    ## Get last queue used
+    QUEUE_NAME_D=$(sed -n 's/^.*INF_ARG_DESTINATION.*value=(.*).*/\1/p' `ls *info | head -n 1`)
     saveFiles(){
         cp ./config.init ./config-${1}.init
         mv ./config.last ./config.init
