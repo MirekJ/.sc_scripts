@@ -49,7 +49,7 @@ def make(numsc,numch,pbc):
             #print "\n\n\n",t
             #print [data[i][0][x]+data[i][1][x]*step_size*t for x in xrange(3)]
             #print "\n\n\n"            
-            new_data.append([[data[i][0][x]+data[i][1][x]*step_size*t for x in xrange(3)],data[i][1],data[i][2]])
+            new_data.append([[data[i][0][x]-data[i][1][x]*step_size*t for x in xrange(3)],data[i][1],data[i][2]])
     
     outstring=""
     for i in xrange(len(new_data)):
