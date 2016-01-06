@@ -5,7 +5,7 @@ source ~/.sc_scripts/script_functions
 
 CUT_OFF=0.001
 PARTICLE_SIGMA=1.2
-PARTICLE_LENGT=3
+PARTICLE_LENGTH=3
 
 ###############################################
 ####            Bash FUNCTIONS              ###
@@ -48,13 +48,13 @@ done
 BASH_grandCanonSimInfo(){
     AVERAGE_NUM_OF_PARTICLES=$(averageNumberOfParticles)
     VOLUME=$(volumeOfBox)
-    VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder $PARTICLE_SIGMA $PARTICLE_LENGT)*$AVERAGE_NUM_OF_PARTICLES")
+    VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder $PARTICLE_SIGMA $PARTICLE_LENGTH)*$AVERAGE_NUM_OF_PARTICLES")
 	FREE_VOLUME=$(bc <<< "scale=10; ${VOLUME} - ${VOLUME_OF_PARTICLES}")
     VOLUME_FRACTION=$(bc <<< "scale=10;${VOLUME_OF_PARTICLES}/${VOLUME}")
 
 	printAcceptance
 
-	printWarning "In calculation of particle volume explicitli spherocylinders with sigma=1.2 and length=3 are used!\n"
+	printWarning "In calculation of particle volume explicitli spherocylinders with sigma=${PARTICLE_SIGMA} and length=${PARTICLE_LENGTH} are used!\n"
     echo -e "Volume:\t\t\t\t\t$VOLUME\t\t(Free volume: ${FREE_VOLUME})"
 	echo -e "Average number of particles:\t\t$AVERAGE_NUM_OF_PARTICLES"
     echo -e "Volume fraction:\t\t\t$VOLUME_FRACTION"
@@ -67,11 +67,11 @@ BASH_normSimInfo(){
     NUM_TEMP=$(numOfReplica)
     if [[ $NUM_TEMP == 1 ]]; then ## NO PARALEL TEMPERING
         VOLUME=$(volumeOfBox)
-        VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder $PARTICLE_SIGMA $PARTICLE_LENGT )*$NUM_OF_PARTICLES")
+        VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder $PARTICLE_SIGMA $PARTICLE_LENGTH )*$NUM_OF_PARTICLES")
 		FREE_VOLUME=$(bc <<< "scale=10; ${VOLUME} - ${VOLUME_OF_PARTICLES}")
         VOLUME_FRACTION=$(echo "scale=10;${VOLUME_OF_PARTICLES}/${VOLUME}" | bc)
 
-		printWarning "In calculation of particle volume explicitli spherocylinders with sigma=1.2 and length=3 are used!\n"
+		printWarning "In calculation of particle volume explicitli spherocylinders with sigma=${PARTICLE_SIGMA} and length=${PARTICLE_LENGTH} are used!\n"
 		echo -e "Volume:\t\t\t\t\t$VOLUME\t\t(Free volume: ${FREE_VOLUME})"
 		echo -e "Number of particles:\t\t\t$NUM_OF_PARTICLES"
     	echo -e "Volume fraction:\t\t\t$VOLUME_FRACTION"
@@ -83,11 +83,11 @@ BASH_normSimInfo(){
         TEMP_STEP=$(echo "scale=5;(${PTEMP}-${TEMP})/(${NUM_TEMP}-1)" | bc)
         
         VOLUME=$(volumeOfBox)
-        VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder $PARTICLE_SIGMA $PARTICLE_LENGT )*$NUM_OF_PARTICLES")
+        VOLUME_OF_PARTICLES=$(bc <<< "$(volumeOfSpherocylinder $PARTICLE_SIGMA $PARTICLE_LENGTH )*$NUM_OF_PARTICLES")
 		FREE_VOLUME=$(bc <<< "scale=10; ${VOLUME} - ${VOLUME_OF_PARTICLES}")
         VOLUME_FRACTION=$(echo "scale=10;${VOLUME_OF_PARTICLES}/${VOLUME}" | bc)
 
-		printWarning "In calculation of particle volume explicitli spherocylinders with sigma=1.2 and length=3 are used!\n"
+		printWarning "In calculation of particle volume explicitli spherocylinders with sigma=${PARTICLE_SIGMA} and length=${PARTICLE_LENGTH} are used!\n"
 		echo -e "Volume:\t\t\t\t\t$VOLUME\t\t(Free volume: ${FREE_VOLUME})"
 		echo -e "Number of particles:\t\t\t$NUM_OF_PARTICLES"
     	echo -e "Volume fraction:\t\t\t$VOLUME_FRACTION"
