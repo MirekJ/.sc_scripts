@@ -114,7 +114,7 @@ BASH_simStatus(){
 #-------------------------------------------------------------------------------------
 BASH_simDrift(){
     printf "\t| Drifts:"
-    echo -n $(cat *.stdout 2> /dev/null | grep -n "Energy drift" | awk '{print $3}')
+    echo -n $(cat *.stdout 2> /dev/null | grep -n "Energy drift" | awk '{printf "%+10e ", $3}')
     $@
 }
 #-------------------------------------------------------------------------------------
