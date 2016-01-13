@@ -737,7 +737,7 @@ def gc_sim(infilename,topfilename,data,box, sweep, molecules):
             bool_system = 1
             topfile_new.write(line)
 	else:
-            if(bool_system == 1):
+            if(bool_system == 1 and current_moltype < len(molecules)):
                 #print(current_moltype)
                 topfile_new.write(line.split()[0]+" "+str(max_num[current_moltype]/molecules[current_moltype]) + "\n")
                 current_moltype = current_moltype +1
