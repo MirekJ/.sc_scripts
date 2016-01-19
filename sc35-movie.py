@@ -315,7 +315,7 @@ def write_vmd(outfilename,outfilename2,particles, types, geotypes, params, num_f
 
     for i in range(len(type_set)):
         geotype = geotypes[type_set[i]]
-        if ((convert_geotype(geotype) == CHCPSC) or (convert_geotype(geotype) == CHPSC) or (convert_geotype(geotype) == PSC) or (convert_geotype(geotype) == CPSC) or (convert_geotype(geotype) == TCHCPSC) or (convert_geotype(geotype) == TCHPSC) or (convert_geotype(geotype) == TPSC) or (convert_geotype(geotype) == TCPSC)):
+        if ((convert_geotype(geotype) == CHCPSC) or (convert_geotype(geotype) == SCN) or (convert_geotype(geotype) == CHPSC) or (convert_geotype(geotype) == PSC) or (convert_geotype(geotype) == CPSC) or (convert_geotype(geotype) == TCHCPSC) or (convert_geotype(geotype) == TCHPSC) or (convert_geotype(geotype) == TPSC) or (convert_geotype(geotype) == TCPSC)):
 	    num_types += 2
             radius = params[type_set[i]][1]
             if (switch):
@@ -486,11 +486,11 @@ def read_top(topfilename):
 		    #print(type)
 		    #print(geotype)
 		    if ( (geotype == "SCN") or (geotype == "SPN") ):
-			    if (len(linesplit) != 2):
+			    if (len(linesplit) != 3):
 			        print "TOPOLOGY ERROR: wrong number of parameters for given type %s"%(type)
 			        return [[],[]]
 			    else:
-			        params[type]=[float(linesplit[0]),float(linesplit[1])]
+			        params[type]=[float(linesplit[0]),float(linesplit[1]), 0.0, 0.0, 0.0, 0.0,float(linesplit[2]), 0.0]
 			        types[type]=type
 			        geotypes[type]=geotype
 		    #if ( (long(before) == SCA) or (long(before) == SPA) ):
@@ -787,6 +787,10 @@ def make(infilename,outfilename,outfilename2,topfilename,gc_switch):
        del sweep[:]
        print "Re-reading topology, coordinates for grandcanonical"
        [particles, molecules, types,geotypes, params, switch, switchtypes]=read_top(topfilename)
+## DEBUG
+##       print "Params:"
+##       print params
+
        [box,data,sweep]=read_input(infilename)
 
     if ( (len(data[0]) % len(particles)) != 0):
