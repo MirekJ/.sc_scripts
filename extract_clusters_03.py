@@ -608,7 +608,7 @@ def main(cluster_file_PATH, movie_file_PATH, box):
             if(cluster.size > max_size):
                 max_size=cluster.size
             if(cluster.size in output_data[int(sweep[0])]):
-				#if( math.fabs(math.fabs(cluster.energy) - CLUSTER_ENERGY ) < CLUSTER_ENERGY_TOLERANCE ):
+                #if( math.fabs(math.fabs(cluster.energy) - CLUSTER_ENERGY ) < CLUSTER_ENERGY_TOLERANCE ):
                 #if(cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
                 ## Special for tetramer from two dimers
                 #if(cluster.isClusterParallel(ANGLE_TOLERANCE) and not cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
@@ -623,7 +623,7 @@ def main(cluster_file_PATH, movie_file_PATH, box):
                     output_data["files"][cluster.size]["out_i"].write(cluster.MovieFrame(output_data["files"][cluster.size]["i_count"],box).Show())
                     output_data["files"][cluster.size]['i_count']+=1;
             else:
-				#if( math.fabs(math.fabs(cluster.energy) - CLUSTER_ENERGY ) < CLUSTER_ENERGY_TOLERANCE ):
+                #if( math.fabs(math.fabs(cluster.energy) - CLUSTER_ENERGY ) < CLUSTER_ENERGY_TOLERANCE ):
                 #if(cluster.isClusterParallel(ANGLE_TOLERANCE) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size) )):
                 ## Special for tetramer from two dimers
                 #if(cluster.isClusterParallel(ANGLE_TOLERANCE) and not cluster.arePatchsPointingToCOM2(PATCH_ANGLE_TOLERANCE,box) and (math.fabs((cluster.energy/cluster.size)-CLUSTER_ENERGY) < (CLUSTER_ENERGY_TOLERANCE*cluster.size))):
