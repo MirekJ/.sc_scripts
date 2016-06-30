@@ -301,7 +301,7 @@ volumeOfSpherocylinder(){
 	## Function simply calculate volume of spherocylinder when diameter (sigma) and length is given
 	SIGMA=$1
 	LENGHT=$2
-	echo $(bc <<< "scale=20;((${PI}*${SIGMA}*${SIGMA}*(2*${SIGMA}+3*${LENGHT}))/12)")
+	echo $(bc <<< "scale=20;(${PI}*${SIGMA}*${SIGMA}*(1.3333333333333333333333*${SIGMA}+${LENGHT}))")
 	return $?
 }
 
@@ -445,17 +445,23 @@ printLine(){
 
 minMax(){
 	## Function take given distribution where values might or not be ordered and find minimal and maximal value
+	## Optional agriment is column in which min and max should be calculated
 	## EXAMPLE minMax "./path/to/distribution"
 	## --------------------------------------------------------------------------------------------------------
 	## RETURN        Two values of minimal and maximal value separated by space
-	awk '
-    	BEGIN{getline;min=$1;max=$1}
+	if [ $# -eq 1 ]; then
+	    COLUMNS=1;
+	else
+	    COLUMNS=$2;
+	fi
+	awk -v c=${COLUMNS} '
+    	BEGIN{getline;min=$c;max=$c}
     	{
-    	if($1 > max){
-       		max = $1
+    	if($c > max){
+       		max = $c
         }
-	    if($1 < min){
-    	    min = $1
+	    if($c < min){
+    	    min = $c
         }
     	}
     	END{
@@ -469,6 +475,7 @@ histogram(){
 	## min          Minimum value of distribution
 	## max          Maximum value of distribution
 	## NUM_BINS     Number of bins in which distribution is divided
+	## Optional 4th argument is column for which histogram is calculated
 	## EXAMPLE      histogram $min $max $NUM_BINS "./path/to/distribution"
 	## --------------------------------------------------------------------------------------------------------
 	## RETURN       Data in two columns in first is middle value of bin and in second is population of that bin

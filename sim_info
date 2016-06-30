@@ -5,7 +5,7 @@ source ~/.sc_scripts/script_functions
 
 CUT_OFF=0.001
 PARTICLE_SIGMA=1.2
-PARTICLE_LENGTH=3
+PARTICLE_LENGTH=3.0
 
 ###############################################
 ####            Bash FUNCTIONS              ###

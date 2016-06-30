@@ -18,26 +18,6 @@ def parseColumnSelection(columnsSelection):
             
 numberFormat="%5.2f"
 
-def histogram(inputData, binSize):
-    minim = min(inputData);
-    maxim = max(inputData);
-    numOfBins = int((maxim-minim)/binSize);
-    
-    population = [0.0]*(numOfBins+1);
-
-    numberOfSamples = 0.0;
-    for i in inputData:
-        population[int((i-minim)/binSize)] += 1.0;
-        numberOfSamples += 1.0;
-
-    population[len(population)-2] += 1; # add maximal value since previous condition calculate <min;max)
-    results = []
-    halfInterval = 0.5 * binSize;
-    for i in xrange(numOfBins):
-        results.append((minim+halfInterval+i*binSize,population[i]/numberOfSamples));
-        
-    return results
-  
 def calcStatistics(inputPath, methodType, columnsSelection):
     inputFile = open(inputPath, 'r')
     methodTypeParsed = methodType.split("|");
@@ -52,19 +32,7 @@ def calcStatistics(inputPath, methodType, columnsSelection):
         splits = line.split();
         ## tady dat warning nebo tak neco ... soubor musi byt rectengular
         if len(splits) > 0:
-            inputData.append([float(x) for x in splits]);                
-
-    ## Transform from lines to colums
-    if ( "hist" in methodTypeParsed ):
-        inputDataColumns = [ [] for i in xrange(len(inputData[0]))]
-        for line in inputData:
-            for column in xrange(len(inputDataColumns)):
-                inputDataColumns[column].append(line[column]);        
-        hist = histogram(inputDataColumns[0],1.0)
-        for line in hist:
-            print (numberFormat+"\t"+numberFormat) % (line[0],line[1]);
-        return
-    
+            inputData.append([float(x) for x in splits]);
 
     ## calculate columnsSum
     columsSum = inputData[0];

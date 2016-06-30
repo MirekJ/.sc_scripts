@@ -22,13 +22,16 @@ import gzip
 import usefulmath
 
 
-def gennewcoord(pbc):
+def gennewcoord(pbc,dist):
     #generate random vector on 1 sphere
     orient=usefulmath.vec_random()
     orient=usefulmath.vec_normalize(orient)
 
+    dist=float(dist);
+    dist2=2.0*dist;
+
     #generate position
-    pos=[random.random()*float(pbc[0]),random.random()*float(pbc[1]),random.random()*float(pbc[2])]
+    pos=[dist+random.random()*(float(pbc[0])-dist2),dist+random.random()*(float(pbc[1])-dist2),dist+random.random()*(float(pbc[2])-dist2)]
     
     #generate patch (perpendicular to orientation of cylinder)
     patch=usefulmath.perp_vec(orient)
@@ -37,7 +40,7 @@ def gennewcoord(pbc):
     #return [pos,orient]
     return [pos,orient,patch]
 
-def make(numsc,numch,pbc,output_path):
+def make(numsc,dist,numch,pbc,output_path):
     volume=1.0
     for i in pbc:
         volume=volume*float(i)
@@ -60,7 +63,7 @@ def make(numsc,numch,pbc,output_path):
     #print numsc,numch,pbc,output_path
 
     for i in xrange(int(numch)):
-        data.append(gennewcoord(pbc))
+        data.append(gennewcoord(pbc,dist))
     ##data in form [sc, sc, ..] sc=[[center],[orientation],[patch orientation]]
     #print data
 
@@ -115,6 +118,13 @@ parser.add_option(
     default="1"
     )
 parser.add_option(
+    "-d",
+    "--distance",
+    help="Distance from box sides",
+    dest="dist",
+    default="0"
+    )
+parser.add_option(
     "-o",
     "--output",
     help="Set to which file you want to save data",
@@ -130,7 +140,7 @@ parser.add_option(
 (options,arguments)=parser.parse_args()
 if not options.pbc:
     sys.exit("Error: You have to set size of box (--pbc)")
-make(options.scnum,options.chnum,options.pbc.split(),options.outfilename)
+make(options.scnum,options.dist,options.chnum,options.pbc.split(),options.outfilename)
 
 
 

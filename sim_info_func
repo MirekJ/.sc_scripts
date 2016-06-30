@@ -112,6 +112,23 @@ BASH_simStatus(){
 }
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
+BASH_simStatusShort(){
+    printf " | " $(basename $(pwd))
+        case $(pstatus) in
+            P) printf "\e[34;1mP\e[0m";;
+            Q) printf "\e[35;1mQ\e[0m";;
+            R) printf "\e[33;1mR\e[0m";;
+            K) printf "\e[31;1mK\e[0m";;
+            F) printf "\e[92;1mF\e[0m";;
+            IN) printf "\e[101;1mI\e[0m";;
+            UN) printf "\e[101;1mU\e[0m";;
+            *) printf "NEKDO NECO PRIDAL :)";;
+        esac
+    $@
+}
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+
 BASH_simDrift(){
     printf "\t| Drifts:"
     if [ ! -z "$(ls -f *.stdout 2> /dev/null | tail -n 1)$(ls -f *#???.stdout 2> /dev/null)" ]; then

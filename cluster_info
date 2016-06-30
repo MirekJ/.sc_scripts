@@ -202,7 +202,7 @@ BASH_calcStatistics(){
 		fi
 	# ___________________________________ 
 	#/                                   \
-	#|	 Clusters defined by geometry    |
+	#|   Clusters defined by geometry    |
 	#\___________________________________/
 	elif [[ ($# > 0) && (${1::2} == "-g") ]]; then
 		## For geometric definition of clusters we need to condense movie
